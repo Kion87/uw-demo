@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  depositAddresses DepositAddress[]
+}
+
+model DepositAddress {
+  id        String   @id @default(cuid())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  asset     String   // "USDT", "BTC"
+  network   String   // "TRC20", "ERC20", etc.
+  address   String   // reusable deposit address
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, asset, network])
+  @@index([address])
+}

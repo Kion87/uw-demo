@@ -1,0 +1,19 @@
+/* Default = LIGHT */
+:root {
+  --bg: 248 250 252; /* slate-50 */
+  --panel: 255 255 255; /* white */
+  --border: 226 232 240; /* slate-200 */
+  --text: 15 23 42; /* slate-900 */
+  --muted: 71 85 105; /* slate-600 */
+  --green: 0 220 130; /* Nuxt green */
+}
+
+/* DARK */
+html.theme-dark {
+  --bg: 11 15 26; /* deep navy */
+  --panel: 15 23 42; /* slate-900-ish */
+  --border: 31 42 68; /* subtle border */
+  --text: 229 231 235; /* gray-200 */
+  --muted: 156 163 175; /* gray-400 */
+  --green: 0 220 130;
+}
