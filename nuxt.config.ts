@@ -5,4 +5,10 @@ export default defineNuxtConfig({
 
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
+
+  nitro: {
+    externals: {
+      inline: ["@prisma/adapter-pg", "pg"],
+    },
+  },
 });
