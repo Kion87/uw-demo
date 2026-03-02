@@ -48,19 +48,26 @@ model DepositAddress {
 }
 
 model Deposit {
-  id        Int      @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
 
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  asset     String   // e.g. "USDT"
-  network   String   // e.g. "TRC20" / "ERC20"
-  amount    Decimal  @db.Decimal(36, 18)
+  // What user selected (mapped to Uniwire)
+  asset           String   // e.g. "USDT", "BTC"
+  network         String   // e.g. "ETH", "BTC", "TRX", "SOL" (Uniwire "kind")
 
-  status    String   @default("pending") // pending | confirmed | failed (for now as string)
+  // Optional: because Uniwire invoices can be created without amount for reusable addresses
+  amount          Decimal? @db.Decimal(36, 18)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Link to Uniwire invoice/address created for this deposit request
+  uniwireInvoiceId String  @unique
+  address          String
+
+  status          String   @default("new") // matches Uniwire statuses like "new", "pending", "complete", "expired" :contentReference[oaicite:1]{index=1}
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([userId, createdAt])
 }

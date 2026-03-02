@@ -51,5 +51,5 @@ export async function uniwireRequest<T>(
       "X-CC-SIGNATURE": signature,
       Accept: "application/json",
     },
-  });
+  }) as T;
 }
