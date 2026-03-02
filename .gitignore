@@ -28,3 +28,6 @@ dev.db
 prisma/dev.db
 prisma/*.db
 prisma/*.db-journal
+
+# Local Netlify folder
+.netlify
