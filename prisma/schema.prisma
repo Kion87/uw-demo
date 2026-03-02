@@ -9,12 +9,27 @@ datasource db {
 }
 
 model User {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
+  publicId  String?  @unique
   email     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   depositAddresses DepositAddress[]
+  sessions         Session[]
+  deposits Deposit[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model DepositAddress {
@@ -30,4 +45,22 @@ model DepositAddress {
 
   @@unique([userId, asset, network])
   @@index([address])
+}
+
+model Deposit {
+  id        Int      @id @default(autoincrement())
+
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  asset     String   // e.g. "USDT"
+  network   String   // e.g. "TRC20" / "ERC20"
+  amount    Decimal  @db.Decimal(36, 18)
+
+  status    String   @default("pending") // pending | confirmed | failed (for now as string)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
 }
