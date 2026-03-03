@@ -57,12 +57,15 @@ async function submitAuth() {
 
   loading.value = true;
   try {
-    const res: any = await $fetch("/api/signup", {
+    await $fetch("/api/signup", {
       method: "POST",
       body: { email: e },
     });
-    user.value = res.user;
-    localStorage.setItem("uw-user", JSON.stringify(res.user));
+
+    const me: any = await $fetch("/api/me");
+    user.value = me.user;
+
+    localStorage.setItem("uw-user", JSON.stringify(user.value));
     closeAuth();
   } catch (err: any) {
     errorMsg.value =
