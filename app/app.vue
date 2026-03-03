@@ -6,32 +6,28 @@ const theme = ref<ThemeMode>("light");
 
 const user = useState<any | null>("user", () => null);
 
+function toggleTheme() {
+  theme.value = theme.value === "dark" ? "light" : "dark";
+}
+
 onMounted(() => {
-  // theme
   const savedTheme = localStorage.getItem("uw-theme") as ThemeMode | null;
   if (savedTheme === "dark" || savedTheme === "light") theme.value = savedTheme;
+
   document.documentElement.classList.toggle(
     "theme-dark",
     theme.value === "dark",
   );
 
-  // user
-  const savedUser = localStorage.getItem("uw-user");
-  if (savedUser) {
-    try {
-      user.value = JSON.parse(savedUser);
-    } catch {}
-  }
+  // sync user from server
+  $fetch("/api/me")
+    .then((me: any) => {
+      user.value = me.user;
+    })
+    .catch(() => {
+      user.value = null;
+    });
 });
-
-watch(theme, (v) => {
-  document.documentElement.classList.toggle("theme-dark", v === "dark");
-  localStorage.setItem("uw-theme", v);
-});
-
-function toggleTheme() {
-  theme.value = theme.value === "dark" ? "light" : "dark";
-}
 
 // auth modal (same behavior: find-or-create)
 type AuthMode = "signup" | "login";
@@ -61,7 +57,7 @@ async function submitAuth() {
 
   loading.value = true;
   try {
-    const res: any = await $fetch("/api/register", {
+    const res: any = await $fetch("/api/signup", {
       method: "POST",
       body: { email: e },
     });
@@ -76,7 +72,10 @@ async function submitAuth() {
   }
 }
 
-function logout() {
+async function logout() {
+  try {
+    await $fetch("/api/logout", { method: "POST" });
+  } catch {}
   user.value = null;
   localStorage.removeItem("uw-user");
 }
@@ -139,7 +138,7 @@ function logout() {
               <span class="text-nuxt-muted">{{ user.email }}</span>
               <span class="text-nuxt-muted">•</span>
               <span class="text-nuxt-muted">ID</span>
-              <span class="font-semibold">{{ user.idFormatted }}</span>
+              <span class="font-semibold">{{ user.publicId }}</span>
             </div>
             <button
               class="h-10 rounded-lg border border-nuxt-border bg-nuxt-panel px-4 text-sm font-semibold hover:opacity-90"
