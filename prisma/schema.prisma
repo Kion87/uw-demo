@@ -35,16 +35,16 @@ model Session {
 model DepositAddress {
   id        String   @id @default(cuid())
   userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  asset     String   // "USDT", "BTC"
-  network   String   // "TRC20", "ERC20", etc.
-  address   String   // reusable deposit address
-
+  assetKey  String
+  invoiceId String?
+  address   String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([userId, asset, network])
-  @@index([address])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetKey])
+  @@index([userId])
 }
 
 model Deposit {

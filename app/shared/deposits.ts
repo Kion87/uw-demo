@@ -2,6 +2,7 @@ export type DepositAssetKey =
   | "BTC"
   | "ETH"
   | "USDT_ERC20"
+  | "USDT_TRC20"
   | "TRX"
   | "SOL"
   | "USDC_SPL";
@@ -18,7 +19,7 @@ export const DEPOSIT_ASSETS: DepositAssetOption[] = [
   { key: "ETH", label: "ETH (Ethereum)", currency: "ETH", kind: "ETH" },
   // ERC-20 token: currency=USDT, chain kind=ETH
   { key: "USDT_ERC20", label: "USDT (ERC-20)", currency: "USDT", kind: "ETH" },
-
+  { key: "USDT_TRC20", label: "USDT (TRC20)", currency: "USDT", kind: "TRX" },
   { key: "TRX", label: "TRX (Tron)", currency: "TRX", kind: "TRX" },
   { key: "SOL", label: "SOL (Solana)", currency: "SOL", kind: "SOL" },
   // SPL token: currency=USDC, chain kind=SOL
