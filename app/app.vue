@@ -99,7 +99,7 @@ async function logout() {
             U
           </div>
           <div class="leading-tight">
-            <div class="text-base font-semibold">Uniwire Demo</div>
+            <div class="text-base font-semibold">Uniwire Demo TRALALA</div>
             <div class="text-xs text-nuxt-muted">
               Nuxt full-stack • invoices via API
             </div>
