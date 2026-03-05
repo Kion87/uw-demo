@@ -18,7 +18,7 @@ const copied = ref(false);
 const BASE_TO_KEYS: Record<BaseAsset, DepositAssetKey[]> = {
   BTC: ["BTC"], // later you can add "BTC_LN"
   ETH: ["ETH"],
-  USDT: ["USDT_ERC20", "USDT_TRC20"], // add "USDT_TRC20", "USDT_BEP20", "USDT_SPL" when you have them
+  USDT: ["USDT_ERC20", "USDT_TRC20", "USDT_BEP20"], // add "USDT_TRC20", "USDT_BEP20", "USDT_SPL" when you have them
   USDC: ["USDC_SPL"],
   TRX: ["TRX"],
   SOL: ["SOL"],

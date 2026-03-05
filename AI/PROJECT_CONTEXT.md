@@ -1,5 +1,9 @@
 # UW Demo --- Project Context
 
+## References
+
+https://docs.uniwire.com/api/quickstart
+
 ## Project Overview
 
 UW Demo is a crypto deposit demo system integrated with Uniwire. It
@@ -15,26 +19,26 @@ Deposits are processed through Uniwire invoices.
 
 ### Frontend
 
--   Nuxt 4
--   Vue 3
--   TailwindCSS
+- Nuxt 4
+- Vue 3
+- TailwindCSS
 
 ### Backend
 
--   Nuxt Server Routes (Nitro)
+- Nuxt Server Routes (Nitro)
 
 ### Database
 
--   PostgreSQL
--   Prisma ORM
+- PostgreSQL
+- Prisma ORM
 
 ### Deployment
 
--   Netlify
+- Netlify
 
 ### External Integration
 
--   Uniwire API
+- Uniwire API
 
 ## Authentication
 
@@ -163,9 +167,9 @@ POST /api/uniwire/callback
 
 Responsibilities:
 
--   verify signature
--   ensure idempotency
--   identify user via passthrough
--   verify address ownership
--   credit balance
--   return HTTP 200
+- verify signature
+- ensure idempotency
+- identify user via passthrough
+- verify address ownership
+- credit balance
+- return HTTP 200

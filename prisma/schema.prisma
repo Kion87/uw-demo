@@ -64,10 +64,19 @@ model Deposit {
   uniwireInvoiceId String  @unique
   address          String
 
+  uniwireTransactionId String @unique
+txid                String?
+
   status          String   @default("new") // matches Uniwire statuses like "new", "pending", "complete", "expired" :contentReference[oaicite:1]{index=1}
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([userId, createdAt])
+}
+
+model UniwireCallback {
+  id         Int      @id @default(autoincrement())
+  callbackId String   @unique
+  receivedAt DateTime @default(now())
 }

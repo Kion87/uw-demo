@@ -1,15 +1,21 @@
 # Uniwire Integration --- UW Demo
 
+## References
+
+https://docs.uniwire.com/api/quickstart
+
+---
+
 ## Purpose
 
 Uniwire handles:
 
--   crypto deposit address creation
--   blockchain monitoring
--   transaction detection
--   callback notifications
+- crypto deposit address creation
+- blockchain monitoring
+- transaction detection
+- callback notifications
 
-------------------------------------------------------------------------
+---
 
 ## Invoice Creation
 
@@ -22,7 +28,7 @@ Payload example:
 { "profile_id": "...", "currency": "USDT", "kind": "TRX", "passthrough":
 "0001" }
 
-------------------------------------------------------------------------
+---
 
 ## Passthrough Field
 
@@ -37,7 +43,7 @@ Example:
 This allows webhook callbacks to identify which user initiated the
 deposit.
 
-------------------------------------------------------------------------
+---
 
 ## Response Formats
 
@@ -55,7 +61,7 @@ Always extract using:
 
 const inv = response.result ?? response.content?.result
 
-------------------------------------------------------------------------
+---
 
 ## Callback Endpoint
 
