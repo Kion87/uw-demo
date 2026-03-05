@@ -226,29 +226,45 @@ export default defineEventHandler(async (h3event) => {
   const status = callbackStatus || String(tx?.status ?? "unknown");
   const address = String(receivingAddress);
 
-  await prisma.deposit.upsert({
-    where: { uniwireTransactionId },
-    update: {
-      status,
-      amount,
-      asset,
-      network,
-      address,
-      uniwireInvoiceId,
-      txid,
-    },
-    create: {
-      userId: user.id,
-      asset,
-      network,
-      amount,
-      address,
-      status,
-      uniwireInvoiceId,
-      uniwireTransactionId,
-      txid,
-    },
+  console.log("TX EXTRACT", {
+    tx_id: tx?.id,
+    txid: tx?.txid,
+    invoice_id: invoice?.id,
+    address: invoice?.address,
+    passthrough: invoice?.passthrough,
+    paid_amount: tx?.amount?.paid?.amount,
+    paid_currency: tx?.amount?.paid?.currency,
+    callback_status: payload?.callback_status,
   });
+
+  try {
+    await prisma.deposit.upsert({
+      where: { uniwireTransactionId },
+      update: {
+        status,
+        amount,
+        asset,
+        network,
+        address,
+        uniwireInvoiceId,
+        txid,
+      },
+      create: {
+        userId: user.id,
+        asset,
+        network,
+        amount,
+        address,
+        status,
+        uniwireInvoiceId,
+        uniwireTransactionId,
+        txid,
+      },
+    });
+  } catch (e: any) {
+    console.error("DEPOSIT UPSERT FAILED", e);
+    throw e; // important: keeps status 500 so Uniwire shows it failed
+  }
 
   return { ok: true, callbackId: String(callbackId) };
 });
