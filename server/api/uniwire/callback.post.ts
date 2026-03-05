@@ -172,15 +172,54 @@ export default defineEventHandler(async (h3event) => {
   const uniwireInvoiceId = invoiceId ?? "unknown";
   const txid = tx?.txid ? String(tx.txid) : null;
 
-  const asset = String(tx?.currency ?? invoice?.currency ?? "UNKNOWN");
-  const network = String(tx?.kind ?? invoice?.kind ?? "UNKNOWN");
+  const asset = String(
+    tx?.currency ??
+      tx?.asset ??
+      invoice?.currency ??
+      invoice?.asset ??
+      "UNKNOWN",
+  );
+
+  const network = String(
+    tx?.kind ?? tx?.network ?? invoice?.kind ?? invoice?.network ?? "UNKNOWN",
+  );
 
   // Prisma Decimal columns accept string inputs
-  const amountRaw =
-    tx?.amount ?? tx?.paid_amount ?? tx?.received_amount ?? tx?.value ?? null;
+  function extractDecimalString(v: any): string | null {
+    if (v === null || v === undefined) return null;
+
+    // simple cases
+    if (typeof v === "number") return String(v);
+    if (typeof v === "string") return v;
+
+    // object cases (common patterns)
+    if (typeof v === "object") {
+      // try common numeric fields
+      const candidates = [
+        v.amount,
+        v.value,
+        v.total,
+        v.received,
+        v.paid,
+        v.expected,
+        v.decimal,
+        v.raw,
+      ];
+      for (const c of candidates) {
+        if (typeof c === "number") return String(c);
+        if (typeof c === "string") return c;
+      }
+    }
+
+    return null;
+  }
 
   const amount =
-    amountRaw === null || amountRaw === undefined ? null : String(amountRaw);
+    extractDecimalString(tx?.amount) ??
+    extractDecimalString(tx?.paid_amount) ??
+    extractDecimalString(tx?.received_amount) ??
+    extractDecimalString(tx?.value) ??
+    null;
 
   const status = callbackStatus || String(tx?.status ?? "unknown");
   const address = String(receivingAddress);
