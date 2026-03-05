@@ -45,6 +45,7 @@ function parsePassthroughToPublicId(passthroughRaw: unknown): string | null {
 export default defineEventHandler(async (h3event) => {
   const payload = await readBody<any>(h3event);
   const VERSION = "cb-v7-2026-03-05-2329";
+
   console.log("WEBHOOK VERSION", VERSION);
   console.log("UNIWIRE CALLBACK HIT", {
     callback_id: payload?.callback_id,
@@ -63,7 +64,7 @@ export default defineEventHandler(async (h3event) => {
       statusMessage: "Missing callback_id or signature",
     });
   }
-  console.log("SIGNATURE OK", VERSION);
+
   const callbackToken = process.env.UNIWIRE_CALLBACK_TOKEN;
   if (!callbackToken) {
     throw createError({
@@ -77,18 +78,25 @@ export default defineEventHandler(async (h3event) => {
     throw createError({ statusCode: 401, statusMessage: "Invalid signature" });
   }
 
-  // --- B) Callback idempotency ---
+  console.log("SIGNATURE OK", VERSION);
+
+  // --- B) Callback idempotency (DO NOT return early on duplicates) ---
+  let isDuplicateCallback = false;
+
   try {
     await prisma.uniwireCallback.create({
       data: { callbackId: String(callbackId) },
     });
     console.log("UNIWIRE CALLBACK SAVED", String(callbackId));
   } catch (e: any) {
-    console.error("UNIWIRE CALLBACK INSERT FAILED", e);
     if (e?.code === "P2002") {
-      return { ok: true, duplicate: true };
+      isDuplicateCallback = true;
+      console.log("UNIWIRE CALLBACK DUPLICATE", String(callbackId));
+      // ✅ Continue processing. Deposit upsert will keep it idempotent.
+    } else {
+      console.error("UNIWIRE CALLBACK INSERT FAILED", e);
+      throw e;
     }
-    throw e;
   }
 
   // --- C) Extract result + detect callback type ---
@@ -106,7 +114,12 @@ export default defineEventHandler(async (h3event) => {
 
   // Ignore invoice callbacks (return 200 so Uniwire won't retry)
   if (!isTransactionCallback) {
-    return { ok: true, ignored: "invoice_callback" };
+    return {
+      ok: true,
+      ignored: "invoice_callback",
+      version: VERSION,
+      duplicateCallback: isDuplicateCallback,
+    };
   }
 
   // --- D) Transaction callback processing ---
@@ -178,6 +191,8 @@ export default defineEventHandler(async (h3event) => {
   const asset = String(
     tx?.currency ??
       tx?.asset ??
+      // best source in your real payload:
+      tx?.amount?.paid?.currency ??
       invoice?.currency ??
       invoice?.asset ??
       "UNKNOWN",
@@ -191,13 +206,10 @@ export default defineEventHandler(async (h3event) => {
   function extractDecimalString(v: any): string | null {
     if (v === null || v === undefined) return null;
 
-    // simple cases
     if (typeof v === "number") return String(v);
     if (typeof v === "string") return v;
 
-    // object cases (common patterns)
     if (typeof v === "object") {
-      // try common numeric fields
       const candidates = [
         v.amount,
         v.value,
@@ -218,8 +230,8 @@ export default defineEventHandler(async (h3event) => {
   }
 
   const amount =
-    extractDecimalString(tx?.amount?.paid?.amount) ?? // ✅ Uniwire transaction payload
-    extractDecimalString(tx?.amount?.paid) ?? // (if paid is a number/string)
+    extractDecimalString(tx?.amount?.paid?.amount) ??
+    extractDecimalString(tx?.amount?.paid) ??
     extractDecimalString(tx?.amount) ??
     extractDecimalString(tx?.paid_amount) ??
     extractDecimalString(tx?.received_amount) ??
@@ -238,6 +250,7 @@ export default defineEventHandler(async (h3event) => {
     paid_amount: tx?.amount?.paid?.amount,
     paid_currency: tx?.amount?.paid?.currency,
     callback_status: payload?.callback_status,
+    duplicateCallback: isDuplicateCallback,
   });
 
   try {
@@ -266,8 +279,14 @@ export default defineEventHandler(async (h3event) => {
     });
   } catch (e: any) {
     console.error("DEPOSIT UPSERT FAILED", e);
-    throw e; // important: keeps status 500 so Uniwire shows it failed
+    throw e;
   }
 
-  return { ok: true, version: VERSION };
+  return {
+    ok: true,
+    version: VERSION,
+    duplicateCallback: isDuplicateCallback,
+    callbackId: String(callbackId),
+    uniwireTransactionId,
+  };
 });
