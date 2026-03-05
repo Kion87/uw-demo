@@ -2,13 +2,11 @@
 
 ## Task
 
-Implement Uniwire webhook callback.
+Webhook receives transaction callbacks and stores deposits
 
-Endpoint:
+Next: credit user balance safely
 
-POST /api/uniwire/callback
-
-------------------------------------------------------------------------
+---
 
 ## Requirements
 
@@ -23,7 +21,7 @@ Webhook must:
 7.  Credit user balance
 8.  Return HTTP 200
 
-------------------------------------------------------------------------
+---
 
 ## Goal
 

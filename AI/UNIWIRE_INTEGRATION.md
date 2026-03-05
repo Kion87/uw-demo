@@ -78,3 +78,7 @@ Responsibilities:
 5.  Record deposit
 6.  Credit user balance
 7.  Return HTTP 200
+
+## Transaction Callbacks
+
+We listen to transaction callbacks (transaction\_\*). Invoice callbacks are ignored.

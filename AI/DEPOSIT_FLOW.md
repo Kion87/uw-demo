@@ -11,7 +11,7 @@ invoices.
 Users: 1. Generate a deposit address 2. Send crypto 3. Receive credited
 balance after webhook confirmation
 
-------------------------------------------------------------------------
+---
 
 ## Deposit Creation Endpoint
 
@@ -21,7 +21,7 @@ Payload:
 
 { "assetKey": "USDT_TRC20" }
 
-------------------------------------------------------------------------
+---
 
 ## Address Reuse Principle
 
@@ -35,7 +35,7 @@ TRX address supports: - TRX - USDT TRC20
 
 SOL address supports: - SOL - SPL tokens
 
-------------------------------------------------------------------------
+---
 
 ## Address Reuse Logic
 
@@ -50,7 +50,7 @@ Lookup order:
 1.  (userId, reuseKey)
 2.  fallback (userId, assetKey)
 
-------------------------------------------------------------------------
+---
 
 ## Address Creation
 
@@ -61,7 +61,7 @@ If address does not exist:
 3.  Save DepositAddress record
 4.  Return address to frontend
 
-------------------------------------------------------------------------
+---
 
 ## Uniwire Invoice
 
@@ -73,7 +73,7 @@ profile_id currency kind passthrough
 
 passthrough contains user.publicId.
 
-------------------------------------------------------------------------
+---
 
 ## Response Parsing
 
@@ -88,3 +88,11 @@ or
 Always extract using:
 
 const inv = response.result ?? response.content?.result
+
+---
+
+## Webhooks/Callbacks
+
+Callback result is a transaction object; passthrough comes from tx.invoice.passthrough”
+
+Deposit upsert key: uniwireTransactionId = tx.id

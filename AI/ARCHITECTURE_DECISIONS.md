@@ -2,7 +2,7 @@
 
 This file records important design decisions made during development.
 
-------------------------------------------------------------------------
+---
 
 ## Address Reuse Per Blockchain
 
@@ -18,11 +18,11 @@ TRX address supports: - TRX - USDT TRC20
 
 Benefits:
 
--   fewer invoices
--   simpler address management
--   more realistic exchange/casino behavior
+- fewer invoices
+- simpler address management
+- more realistic exchange/casino behavior
 
-------------------------------------------------------------------------
+---
 
 ## Passthrough User Identification
 
@@ -35,7 +35,7 @@ Example:
 
 "passthrough": "0001"
 
-------------------------------------------------------------------------
+---
 
 ## Cookie Session Authentication
 
@@ -43,11 +43,11 @@ Decision: Use cookie sessions instead of JWT.
 
 Reason:
 
--   simpler implementation
--   secure server-side sessions
--   good fit for Nuxt server routes
+- simpler implementation
+- secure server-side sessions
+- good fit for Nuxt server routes
 
-------------------------------------------------------------------------
+---
 
 ## Server Architecture
 
@@ -57,6 +57,13 @@ Nuxt server routes (Nitro)
 
 Reason:
 
--   simple API layer
--   works well with Netlify functions
--   avoids separate backend server
+- simple API layer
+- works well with Netlify functions
+- avoids separate backend server
+
+---
+
+## Transaction callbacks
+
+Switched from invoice callbacks to transaction callbacks per quickstart
+Reason: reusable addresses + multiple tx per invoice/address

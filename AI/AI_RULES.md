@@ -130,6 +130,11 @@ Code must remain compatible with Netlify functions.
 
 Instructions should be:
 
--   step-by-step
--   beginner-friendly
--   minimal refactors
+- step-by-step
+- beginner-friendly
+- minimal refactors
+
+## Callbacks processing
+
+Only credit on transaction_confirmed / transaction_complete
+Ignore invoice callbacks
