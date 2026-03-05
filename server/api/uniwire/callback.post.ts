@@ -44,6 +44,8 @@ function parsePassthroughToPublicId(passthroughRaw: unknown): string | null {
 
 export default defineEventHandler(async (h3event) => {
   const payload = await readBody<any>(h3event);
+  const VERSION = "cb-v7-2026-03-05-2329";
+  console.log("WEBHOOK VERSION", VERSION);
   console.log("UNIWIRE CALLBACK HIT", {
     callback_id: payload?.callback_id,
     callback_status: payload?.callback_status,
@@ -61,7 +63,7 @@ export default defineEventHandler(async (h3event) => {
       statusMessage: "Missing callback_id or signature",
     });
   }
-
+  console.log("SIGNATURE OK", VERSION);
   const callbackToken = process.env.UNIWIRE_CALLBACK_TOKEN;
   if (!callbackToken) {
     throw createError({
@@ -266,5 +268,5 @@ export default defineEventHandler(async (h3event) => {
     throw e; // important: keeps status 500 so Uniwire shows it failed
   }
 
-  return { ok: true, callbackId: String(callbackId) };
+  return { ok: true, version: VERSION };
 });
