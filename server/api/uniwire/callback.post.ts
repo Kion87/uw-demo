@@ -82,7 +82,8 @@ export default defineEventHandler(async (h3event) => {
   }
 
   // --- C) Extract result + detect callback type ---
-  const resultObj = payload?.result ?? payload?.content?.result;
+  const resultObj =
+    payload?.transaction ?? payload?.result ?? payload?.content?.result;
   if (!resultObj) {
     throw createError({
       statusCode: 400,
