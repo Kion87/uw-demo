@@ -44,6 +44,12 @@ function parsePassthroughToPublicId(passthroughRaw: unknown): string | null {
 
 export default defineEventHandler(async (h3event) => {
   const payload = await readBody<any>(h3event);
+  console.log("UNIWIRE CALLBACK HIT", {
+    callback_id: payload?.callback_id,
+    callback_status: payload?.callback_status,
+    has_transaction: !!payload?.transaction,
+    has_result: !!payload?.result,
+  });
 
   // --- A) Signature verification ---
   const callbackId = payload?.callback_id;
@@ -74,6 +80,7 @@ export default defineEventHandler(async (h3event) => {
     await prisma.uniwireCallback.create({
       data: { callbackId: String(callbackId) },
     });
+    console.log("UNIWIRE CALLBACK SAVED callbackId", String(callbackId));
   } catch (e: any) {
     if (e?.code === "P2002") {
       return { ok: true, duplicate: true };
@@ -202,5 +209,5 @@ export default defineEventHandler(async (h3event) => {
     },
   });
 
-  return { ok: true };
+  return { ok: true, callbackId: String(callbackId) };
 });
