@@ -82,8 +82,9 @@ export default defineEventHandler(async (h3event) => {
     await prisma.uniwireCallback.create({
       data: { callbackId: String(callbackId) },
     });
-    console.log("UNIWIRE CALLBACK SAVED callbackId", String(callbackId));
+    console.log("UNIWIRE CALLBACK SAVED", String(callbackId));
   } catch (e: any) {
+    console.error("UNIWIRE CALLBACK INSERT FAILED", e);
     if (e?.code === "P2002") {
       return { ok: true, duplicate: true };
     }
