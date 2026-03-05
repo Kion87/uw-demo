@@ -1,98 +1,61 @@
-# Deposit Flow --- UW Demo
+# DEPOSIT_FLOW.md
+
+# Deposit Flow — UW Demo
 
 ## Overview
 
-This document explains how crypto deposits are created and processed in
-the UW Demo system.
+Users create/reuse a deposit address and then deposit funds. Uniwire monitors the chain and sends transaction callbacks to the app, which stores deposits.
 
-The system simulates a casino/broker deposit flow using Uniwire
-invoices.
+## 1) Create/Get Deposit Address
 
-Users: 1. Generate a deposit address 2. Send crypto 3. Receive credited
-balance after webhook confirmation
+Endpoint:
 
----
+- POST `/api/deposit`
+  Payload example:
+- `{ "assetKey": "USDT_TRC20" }`
 
-## Deposit Creation Endpoint
+Server logic:
 
-POST /api/deposit
+1. requireUser()
+2. map assetKey → { currency, kind }
+3. reuseKey = kind
+4. lookup DepositAddress by (userId, reuseKey)
+5. return existing address if found
+6. else create Uniwire invoice (reusable)
+7. store DepositAddress
+8. return address
 
-Payload:
+## 2) User Deposits Crypto
 
-{ "assetKey": "USDT_TRC20" }
+User sends funds on-chain to the returned address.
 
----
+## 3) Uniwire Sends Callback
 
-## Address Reuse Principle
+Endpoint:
 
-Deposit addresses are reused per blockchain network.
+- POST `/api/uniwire/callback`
 
-Examples:
+We process **transaction callbacks only**:
 
-ETH address supports: - ETH - USDT ERC20 - USDC ERC20
+- callback_status like `transaction_pending`, `transaction_confirmed`, `transaction_complete`
+- payload includes `transaction: {...}`
 
-TRX address supports: - TRX - USDT TRC20
+Invoice callbacks are ignored (but return 2xx).
 
-SOL address supports: - SOL - SPL tokens
+## 4) Callback Processing Summary
 
----
+For `transaction_*` callbacks:
 
-## Address Reuse Logic
-
-reuseKey = assetConfig.kind
-
-Example values:
-
-ETH TRX SOL BTC
-
-Lookup order:
-
-1.  (userId, reuseKey)
-2.  fallback (userId, assetKey)
-
----
-
-## Address Creation
-
-If address does not exist:
-
-1.  Create Uniwire invoice
-2.  Store returned address
-3.  Save DepositAddress record
-4.  Return address to frontend
-
----
-
-## Uniwire Invoice
-
-POST /v1/invoices
-
-Payload:
-
-profile_id currency kind passthrough
-
-passthrough contains user.publicId.
-
----
-
-## Response Parsing
-
-Uniwire responses may appear as:
-
-{ result: {...} }
-
-or
-
-{ content: { result: {...} } }
-
-Always extract using:
-
-const inv = response.result ?? response.content?.result
-
----
-
-## Webhooks/Callbacks
-
-Callback result is a transaction object; passthrough comes from tx.invoice.passthrough”
-
-Deposit upsert key: uniwireTransactionId = tx.id
+1. verify signature (HMAC of callback_id)
+2. log callback_id in UniwireCallback (do not block on duplicates)
+3. extract tx from `payload.transaction`
+4. resolve user:
+   - `publicId = transaction.invoice.passthrough`
+5. verify address belongs to user:
+   - `transaction.invoice.address` must match DepositAddress (by address or invoiceId)
+6. upsert Deposit:
+   - key: `uniwireTransactionId = transaction.id`
+   - amount: `transaction.amount.paid.amount`
+   - asset: `transaction.amount.paid.currency`
+   - network: `transaction.invoice.kind` (chain); tx.kind may be token-specific
+7. (future) credit user balance idempotently

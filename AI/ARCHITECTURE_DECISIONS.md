@@ -1,69 +1,65 @@
-# Architecture Decisions --- UW Demo
+# ARCHITECTURE_DECISIONS.md
 
-This file records important design decisions made during development.
+# Architecture Decisions — UW Demo
 
----
+## 1) Reuse Addresses Per Blockchain
 
-## Address Reuse Per Blockchain
+Decision:
 
-Decision: Deposit addresses are reused per blockchain network.
-
-Reason: Tokens on the same blockchain share the same address format.
-
-Examples:
-
-ETH address supports: - ETH - USDT ERC20 - USDC ERC20
-
-TRX address supports: - TRX - USDT TRC20
-
-Benefits:
-
-- fewer invoices
-- simpler address management
-- more realistic exchange/casino behavior
-
----
-
-## Passthrough User Identification
-
-Decision: Use Uniwire passthrough field to store user.publicId.
-
-Reason: Allows webhook callbacks to link deposits to users without
-complex mapping.
-
-Example:
-
-"passthrough": "0001"
-
----
-
-## Cookie Session Authentication
-
-Decision: Use cookie sessions instead of JWT.
+- Deposit addresses are reused per blockchain network (not per token).
 
 Reason:
 
-- simpler implementation
-- secure server-side sessions
-- good fit for Nuxt server routes
+- Same address format per chain (EVM, TRON, etc.)
+- Fewer invoices
+- Realistic casino/exchange behavior
 
----
+Implementation:
 
-## Server Architecture
+- reuseKey = assetConfig.kind
+- DepositAddress unique by (userId, reuseKey)
 
-Backend implemented using:
+## 2) Passthrough User Identification
 
-Nuxt server routes (Nitro)
+Decision:
+
+- Store user.publicId in Uniwire invoice passthrough.
 
 Reason:
 
-- simple API layer
-- works well with Netlify functions
-- avoids separate backend server
+- Webhooks can map deposits back to users without complex joins.
 
----
+## 3) Cookie Sessions
 
-## Transaction callbacks
+Decision:
 
-Switched from invoice callbacks to transaction callbacks per quickstart
-Reason: reusable addresses + multiple tx per invoice/address
+- Cookie-based sessions (not JWT/OAuth).
+
+Reason:
+
+- Simple + fits Nitro server routes.
+
+## 4) Transaction Callbacks (Not Invoice Callbacks)
+
+Decision:
+
+- Process Uniwire transaction callbacks (`transaction_*`) and ignore invoice callbacks.
+
+Reason:
+
+- Reusable addresses can receive multiple transactions
+- Transaction callbacks represent actual deposits
+
+## 5) Two-Layer Idempotency
+
+Decision:
+
+1. Log delivery attempts:
+
+- UniwireCallback.callbackId unique
+- duplicates do not block processing (resends happen)
+
+2. Prevent duplicate deposits:
+
+- Deposit keyed by transaction id (uniwireTransactionId unique)
+- upsert Deposit on each callback so status can update (confirmed → complete)

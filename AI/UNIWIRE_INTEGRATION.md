@@ -1,84 +1,79 @@
-# Uniwire Integration --- UW Demo
+# UNIWIRE_INTEGRATION.md
+
+# Uniwire Integration — UW Demo
 
 ## References
 
-https://docs.uniwire.com/api/quickstart
+- https://docs.uniwire.com/api/quickstart :contentReference[oaicite:2]{index=2}
 
----
+## What Uniwire Does Here
 
-## Purpose
-
-Uniwire handles:
-
-- crypto deposit address creation
-- blockchain monitoring
-- transaction detection
-- callback notifications
-
----
+- Creates invoices and deposit addresses
+- Monitors blockchain activity
+- Detects inbound transactions
+- Sends callbacks (webhooks) to your app
 
 ## Invoice Creation
 
 Endpoint:
 
-POST /v1/invoices
+- POST `/v1/invoices`
 
-Payload example:
+Required fields:
 
-{ "profile_id": "...", "currency": "USDT", "kind": "TRX", "passthrough":
-"0001" }
+- profile_id
+- currency
+- kind
+- passthrough
 
----
+Passthrough rule:
 
-## Passthrough Field
-
-The passthrough value contains:
-
-user.publicId
-
-Example:
-
-"0001"
-
-This allows webhook callbacks to identify which user initiated the
-deposit.
-
----
-
-## Response Formats
-
-Uniwire may return two structures.
-
-Format A:
-
-{ result: {...} }
-
-Format B:
-
-{ content: { result: {...} } }
-
-Always extract using:
-
-const inv = response.result ?? response.content?.result
-
----
+- `passthrough = user.publicId` (e.g. `"0001"`)
 
 ## Callback Endpoint
 
-POST /api/uniwire/callback
+Your app:
 
-This endpoint receives deposit confirmations.
+- POST `/api/uniwire/callback` (Netlify deployment URL)
 
-Responsibilities:
+### Callback Types
 
-1.  Verify Uniwire signature
-2.  Ensure idempotent processing
-3.  Identify user via passthrough
-4.  Verify deposit address ownership
-5.  Record deposit
-6.  Credit user balance
-7.  Return HTTP 200
+- Transaction callbacks: `transaction_*` → **processed**
+- Invoice callbacks: `invoice_*` → **ignored** (but return 2xx)
 
-## Transaction Callbacks
+### Payload Shape (Transaction Callback)
 
-We listen to transaction callbacks (transaction\_\*). Invoice callbacks are ignored.
+Top-level fields:
+
+- callback_id
+- callback_status
+- signature
+- transaction: { ... }
+
+(We parse transaction from `payload.transaction`.)
+
+### Signature Verification
+
+- signature is HMAC-SHA256 hex of callback_id using `UNIWIRE_CALLBACK_TOKEN`
+
+### Idempotency
+
+Two-layer approach:
+
+1. Delivery log:
+
+- insert callback_id into `UniwireCallback` (unique)
+- if duplicate callback_id: do not fail; continue
+
+2. Deposit rows:
+
+- upsert by `transaction.id` → `Deposit.uniwireTransactionId` (unique)
+
+### Field Mapping (From Real Payloads)
+
+- amount: `transaction.amount.paid.amount`
+- asset: `transaction.amount.paid.currency`
+- chain/network: prefer `transaction.invoice.kind` (e.g. ETH)
+- token-ish kind: `transaction.kind` may be `ETH_USDT`
+- address: `transaction.invoice.address`
+- txid: `transaction.txid`

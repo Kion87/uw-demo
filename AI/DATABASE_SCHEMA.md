@@ -1,32 +1,59 @@
-# UW Demo --- Database Schema
+# DATABASE_SCHEMA.md
+
+# UW Demo — Database Schema (Conceptual)
 
 ## User
 
-id Int (primary key) publicId String email String
-
-Used for identifying users and linking Uniwire passthrough values.
+- id (Int, PK)
+- publicId (String, unique-ish in practice; used for passthrough lookup)
+- email (String)
+  (Optional future)
+- balance (Decimal) — if you implement direct balance crediting
 
 ## Session
 
-token String userId Int expiresAt DateTime
+- token (String)
+- userId (Int)
+- expiresAt (DateTime)
 
-Used for cookie session authentication.
+## DepositAddress (Reusable Addresses)
 
-## DepositAddress
+- userId (Int)
+- assetKey (String) — used as the chain reuseKey (ETH/TRX/SOL/BTC)
+- invoiceId (String)
+- address (String)
 
-userId Int assetKey String invoiceId String address String
+Unique:
 
-Stores reusable blockchain deposit addresses.
+- (userId, assetKey)
 
-Unique constraint:
+## Deposit (One Row Per Actual Transaction)
 
-(userId, assetKey)
+Key points:
 
-## Deposit
+- A reusable invoice/address can receive multiple transactions
+- Therefore: deposits must be keyed by transaction id
 
-userId Int asset String network String amount Decimal uniwireInvoiceId
-String address String status String
+Fields (typical):
 
-Example statuses:
+- userId (Int)
+- asset (String) — should map to paid currency (e.g. USDT)
+- network (String) — chain (e.g. ETH/TRX); note tx.kind may be token-specific like ETH_USDT
+- amount (Decimal?)
+- uniwireInvoiceId (String) — NOT unique
+- uniwireTransactionId (String) — UNIQUE (idempotency key)
+- txid (String?)
+- address (String)
+- status (String) — callback_status or tx.status
+- createdAt/updatedAt
 
-pending confirmed failed
+## UniwireCallback (Delivery Log)
+
+- id (Int, PK)
+- callbackId (String, UNIQUE)
+- receivedAt (DateTime)
+
+Notes:
+
+- callbackId uniqueness prevents duplicate delivery logging
+- resends may reuse callbackId; do not break processing if callbackId already exists

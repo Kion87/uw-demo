@@ -1,29 +1,31 @@
-# Current Task --- UW Demo
+# CURRENT_TASK.md
 
-## Task
+# Current Task — UW Demo
 
-Webhook receives transaction callbacks and stores deposits
+## Current State (Done)
 
-Next: credit user balance safely
+- ✅ Webhook endpoint deployed on Netlify: POST `/api/uniwire/callback`
+- ✅ Signature verification working
+- ✅ Transaction callbacks received from Uniwire
+- ✅ Callback delivery logged in Neon (UniwireCallback)
+- ✅ Deposit upsert working (keyed by transaction id)
+- ✅ Amount extraction using transaction.amount.paid.amount
 
----
+## Next Task (When You Resume)
 
-## Requirements
+Credit user balance safely:
 
-Webhook must:
+- credit only on transaction_confirmed / transaction_complete
+- never credit twice (even with resends)
+- recommended: store `Deposit.creditedAt` or use a LedgerEntry table
 
-1.  Verify Uniwire signature
-2.  Parse webhook payload
-3.  Ensure idempotent processing
-4.  Identify user via passthrough
-5.  Verify deposit address ownership
-6.  Insert Deposit record
-7.  Credit user balance
-8.  Return HTTP 200
+## Webhook Requirements Checklist
 
----
-
-## Goal
-
-Ensure deposits detected by Uniwire correctly credit the user balance in
-the UW Demo system.
+1. Verify signature
+2. Parse payload.transaction
+3. Handle resends (duplicate callback_id should not break)
+4. Identify user via passthrough
+5. Verify address ownership
+6. Upsert deposit by transaction id
+7. Credit balance idempotently (next)
+8. Return 2xx

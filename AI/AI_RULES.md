@@ -1,140 +1,97 @@
-# UW Demo --- AI Rules
+# AI_RULES.md
 
-This file defines rules AI assistants must follow when modifying the
-project.
+# UW Demo — AI Rules
 
-## Core Architecture
+This file defines constraints AI assistants must follow when working on this project.
 
-### Address Reuse
+## 1) Address Reuse (Do Not Break)
 
-Deposit addresses are reused per blockchain network.
+Deposit addresses are reused per blockchain network (not per token).
 
-Examples:
+- reuseKey = assetConfig.kind (ETH/TRX/SOL/BTC)
+- lookup order:
+  1. (userId, reuseKey)
+  2. fallback (userId, assetKey)
 
-ETH address supports: - ETH - USDT ERC20 - USDC ERC20
+Do not implement token-specific address generation.
 
-TRX address supports: - TRX - USDT TRC20
+## 2) Uniwire Invoices (Do Not Change)
 
-Addresses must NOT be generated per token.
+Invoices are created via:
 
-### Reuse Key
+- POST `/v1/invoices`
 
-reuseKey = assetConfig.kind
+Payload must include:
 
-Examples:
+- `profile_id`
+- `currency`
+- `kind`
+- `passthrough = user.publicId`
 
-ETH TRX SOL BTC
+## 3) Webhooks (Current Architecture)
 
-Lookup order:
+Webhook endpoint:
 
-1.  (userId, reuseKey)
-2.  fallback (userId, assetKey)
+- POST `/api/uniwire/callback`
 
-AI must not change this logic.
+### Callback Types
 
-## Uniwire Integration
+- Process **transaction callbacks only**: `callback_status` starts with `transaction_`
+- Invoice callbacks must be **ignored** but still return **2xx** (so Uniwire doesn’t retry forever)
 
-Invoices created with:
+### Payload Shape (Transaction Callbacks)
 
-POST /v1/invoices
+Uniwire transaction callbacks arrive with fields:
 
-Payload:
+- `callback_id`
+- `callback_status`
+- `signature`
+- `transaction: { ... }`
 
-profile_id currency kind passthrough
+Code must accept transaction data from `payload.transaction` (primary), not only `payload.result`.
 
-Passthrough must contain:
+### Signature Verification
 
-user.publicId
+Signature check:
 
-## Uniwire Response Parsing
+- `signature = hex(HMAC_SHA256(callback_id, key=UNIWIRE_CALLBACK_TOKEN))`
 
-Responses may be:
+### Idempotency (Two Layers)
 
-{ result: {...} }
+1. Callback delivery log:
 
-or
+- Store `callback_id` into `UniwireCallback.callbackId` (unique)
+- If duplicate callback_id occurs, do not fail; continue processing (resends happen)
 
-{ content: { result: {...} } }
+2. Deposit idempotency:
 
-Always parse using:
+- Deposits must be keyed by `uniwireTransactionId` (unique per transaction)
+- Upsert deposit using `transaction.id`
 
-const inv = response.result ?? response.content?.result
+### Credit Rules (When Implemented)
 
-## Webhook Rules
+- Only credit on `transaction_confirmed` / `transaction_complete`
+- Must never credit twice (even with resends)
 
-Endpoint:
+## 4) Auth Rules
 
-POST /api/uniwire/callback
-
-Processing must include:
-
-1.  signature verification
-2.  idempotency
-3.  user lookup via passthrough
-4.  address ownership verification
-5.  deposit record creation
-6.  balance credit
-7.  HTTP 200 response
-
-Duplicate webhooks must never credit deposits twice.
-
-## Authentication Rules
-
-Cookie session auth only.
-
+Cookie-session auth only.
 Endpoints:
 
-POST /api/signup POST /api/logout GET /api/me
+- POST `/api/signup`
+- POST `/api/logout`
+- GET `/api/me`
 
-Do not introduce JWT or OAuth.
+Do not introduce JWT/OAuth without explicit request.
 
-## Database Rules
+## 5) Stack & Deployment Rules
 
-Database:
+- Nuxt 4 + Nitro server routes
+- Postgres + Prisma
+- Netlify deployment
+  Avoid architecture incompatible with Netlify functions.
 
-PostgreSQL + Prisma
+## 6) Coding Style
 
-Existing models:
-
-User Session DepositAddress Deposit
-
-Do not redesign schema unless requested.
-
-## Backend Rules
-
-Use Nuxt server routes:
-
-server/api/\*.ts
-
-Examples:
-
-server/api/deposit.post.ts server/api/me.get.ts
-
-## Frontend Rules
-
-Stack:
-
-Nuxt 4 Vue 3 TailwindCSS
-
-Do not introduce new frameworks.
-
-## Deployment
-
-Deployment target:
-
-Netlify
-
-Code must remain compatible with Netlify functions.
-
-## Coding Style
-
-Instructions should be:
-
-- step-by-step
-- beginner-friendly
-- minimal refactors
-
-## Callbacks processing
-
-Only credit on transaction_confirmed / transaction_complete
-Ignore invoice callbacks
+- step-by-step, beginner-friendly
+- minimal refactors unless requested
