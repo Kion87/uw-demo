@@ -215,6 +215,8 @@ export default defineEventHandler(async (h3event) => {
   }
 
   const amount =
+    extractDecimalString(tx?.amount?.paid?.amount) ?? // ✅ Uniwire transaction payload
+    extractDecimalString(tx?.amount?.paid) ?? // (if paid is a number/string)
     extractDecimalString(tx?.amount) ??
     extractDecimalString(tx?.paid_amount) ??
     extractDecimalString(tx?.received_amount) ??
