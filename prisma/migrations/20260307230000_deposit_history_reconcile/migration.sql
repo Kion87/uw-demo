@@ -1,0 +1,10 @@
+DROP INDEX IF EXISTS "Deposit_uniwireInvoiceId_key";
+
+ALTER TABLE "Deposit"
+  ALTER COLUMN "uniwireTransactionId" DROP NOT NULL;
+
+ALTER TABLE "Deposit"
+  ADD COLUMN IF NOT EXISTS "executedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "confirmedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "confirmations" INTEGER,
+  ADD COLUMN IF NOT EXISTS "creditedAt" TIMESTAMP(3);
