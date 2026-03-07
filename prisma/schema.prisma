@@ -48,31 +48,38 @@ model DepositAddress {
 }
 
 model Deposit {
-  id              Int      @id @default(autoincrement())
+  id                   Int       @id @default(autoincrement())
 
-  userId          Int
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               Int
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // What user selected (mapped to Uniwire)
-  asset           String   // e.g. "USDT", "BTC"
-  network         String   // e.g. "ETH", "BTC", "TRX", "SOL" (Uniwire "kind")
+  asset                String    // e.g. "USDT", "BTC"
+  network              String    // e.g. "ETH", "BTC", "TRX", "SOL" (Uniwire "kind")
 
-  // Optional: because Uniwire invoices can be created without amount for reusable addresses
-  amount          Decimal? @db.Decimal(36, 18)
+  // Optional: invoices can be created without amount for reusable addresses
+  amount               Decimal?  @db.Decimal(36, 18)
 
-  // Link to Uniwire invoice/address created for this deposit request
-  uniwireInvoiceId String  @unique
-  address          String
+  // Invoice/address used (NOT unique because address can receive multiple tx)
+  uniwireInvoiceId     String
+  address              String
 
-  uniwireTransactionId String @unique
-txid                String?
+  // Transaction-based idempotency (unique per actual deposit tx)
+  uniwireTransactionId String?    @unique
+  txid                 String?
 
-  status          String   @default("new") // matches Uniwire statuses like "new", "pending", "complete", "expired" :contentReference[oaicite:1]{index=1}
+  status               String    @default("new")
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  executedAt           DateTime?
+  confirmedAt          DateTime?
+  confirmations        Int?
+  creditedAt           DateTime?
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@index([userId, createdAt])
+  @@index([uniwireInvoiceId])
 }
 
 model UniwireCallback {
