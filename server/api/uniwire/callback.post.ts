@@ -238,11 +238,11 @@ export default defineEventHandler(async (h3event) => {
     extractDecimalString(tx?.value) ??
     null;
 
-  const status = callbackStatus || String(tx?.status ?? "unknown");
+  const status = String(tx?.status ?? callbackStatus ?? "unknown");
   const address = String(receivingAddress);
 
-  const executedAt = tx?.executedAt ? new Date(tx.executedAt) : null;
-  const confirmedAt = tx?.confirmedAt ? new Date(tx.confirmedAt) : null;
+  const executedAt = tx?.executed_at ? new Date(tx.executed_at) : null;
+  const confirmedAt = tx?.confirmed_at ? new Date(tx.confirmed_at) : null;
   const confirmations =
     typeof tx?.confirmations === "number"
       ? tx.confirmations
