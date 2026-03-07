@@ -241,6 +241,15 @@ export default defineEventHandler(async (h3event) => {
   const status = callbackStatus || String(tx?.status ?? "unknown");
   const address = String(receivingAddress);
 
+  const executedAt = tx?.executedAt ? new Date(tx.executedAt) : null;
+  const confirmedAt = tx?.confirmedAt ? new Date(tx.confirmedAt) : null;
+  const confirmations =
+    typeof tx?.confirmations === "number"
+      ? tx.confirmations
+      : tx?.confirmations != null
+        ? Number(tx.confirmations)
+        : null;
+
   console.log("TX EXTRACT", {
     tx_id: tx?.id,
     txid: tx?.txid,
@@ -250,6 +259,10 @@ export default defineEventHandler(async (h3event) => {
     paid_amount: tx?.amount?.paid?.amount,
     paid_currency: tx?.amount?.paid?.currency,
     callback_status: payload?.callback_status,
+    status,
+    executedAt,
+    confirmedAt,
+    confirmations,
     duplicateCallback: isDuplicateCallback,
   });
 
@@ -264,6 +277,9 @@ export default defineEventHandler(async (h3event) => {
         address,
         uniwireInvoiceId,
         txid,
+        executedAt,
+        confirmedAt,
+        confirmations,
       },
       create: {
         userId: user.id,
@@ -275,18 +291,13 @@ export default defineEventHandler(async (h3event) => {
         uniwireInvoiceId,
         uniwireTransactionId,
         txid,
+        executedAt,
+        confirmedAt,
+        confirmations,
       },
     });
   } catch (e: any) {
     console.error("DEPOSIT UPSERT FAILED", e);
     throw e;
   }
-
-  return {
-    ok: true,
-    version: VERSION,
-    duplicateCallback: isDuplicateCallback,
-    callbackId: String(callbackId),
-    uniwireTransactionId,
-  };
 });
