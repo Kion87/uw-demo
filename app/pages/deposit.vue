@@ -380,12 +380,22 @@ onMounted(async () => {
               </p>
             </div>
 
-            <button
-              class="rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-sm hover:opacity-90"
-              @click="showRecentDeposits = !showRecentDeposits"
-            >
-              {{ showRecentDeposits ? "Hide" : "Show" }}
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                class="rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-sm hover:opacity-90 disabled:opacity-60"
+                :disabled="historyLoading || !me"
+                @click="loadDeposits"
+              >
+                {{ historyLoading ? "Loading..." : "Refresh" }}
+              </button>
+
+              <button
+                class="rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-sm hover:opacity-90"
+                @click="showRecentDeposits = !showRecentDeposits"
+              >
+                {{ showRecentDeposits ? "Hide" : "Show" }}
+              </button>
+            </div>
           </div>
 
           <div v-if="showRecentDeposits">
@@ -408,14 +418,16 @@ onMounted(async () => {
             </div>
 
             <div v-else class="mt-4 overflow-x-auto">
-              <table class="min-w-full text-left text-sm">
+              <table class="min-w-full table-fixed text-left text-sm">
                 <thead class="text-nuxt-muted">
                   <tr class="border-b border-nuxt-border">
-                    <th class="px-4 py-3 font-medium">Created</th>
-                    <th class="px-4 py-3 font-medium">Asset</th>
-                    <th class="px-4 py-3 font-medium">Amount</th>
-                    <th class="px-4 py-3 font-medium">Status</th>
-                    <th class="px-4 py-3 font-medium">TxID</th>
+                    <th class="w-[26%] px-3 py-3 font-medium">Created</th>
+                    <th class="w-[20%] px-3 py-3 font-medium">Asset</th>
+                    <th class="w-[12%] px-3 py-3 text-right font-medium">
+                      Amount
+                    </th>
+                    <th class="w-[14%] px-3 py-3 font-medium">Status</th>
+                    <th class="w-[28%] px-3 py-3 font-medium">TxID</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -429,7 +441,7 @@ onMounted(async () => {
                     </td>
 
                     <td class="whitespace-nowrap px-3 py-3">
-                      <div class="flex items-center gap-2">
+                      <div class="flex items-center gap-3">
                         <img
                           v-if="assetIconForDeposit(d.asset)"
                           :src="assetIconForDeposit(d.asset) || undefined"
@@ -440,7 +452,9 @@ onMounted(async () => {
                       </div>
                     </td>
 
-                    <td class="whitespace-nowrap px-3 py-3">
+                    <td
+                      class="whitespace-nowrap px-3 py-3 text-right font-medium"
+                    >
                       {{ d.amount ?? "—" }}
                     </td>
 
@@ -449,67 +463,69 @@ onMounted(async () => {
                     </td>
 
                     <td class="px-3 py-3">
-                      <div class="flex min-w-[260px] items-center gap-3">
+                      <div class="flex items-center justify-between gap-3">
                         <span class="truncate" :title="d.txid || ''">
                           {{ shortHash(d.txid, 12, 8) }}
                         </span>
 
-                        <button
-                          v-if="d.txid"
-                          type="button"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-text hover:opacity-90"
-                          :title="`Copy ${d.txid}`"
-                          @click="copyText(d.txid)"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            class="h-4 w-4"
+                        <div class="flex items-center gap-2 shrink-0">
+                          <button
+                            v-if="d.txid"
+                            type="button"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-text hover:opacity-90"
+                            :title="`Copy ${d.txid}`"
+                            @click="copyText(d.txid)"
                           >
-                            <rect
-                              x="9"
-                              y="9"
-                              width="13"
-                              height="13"
-                              rx="2"
-                              ry="2"
-                            />
-                            <path
-                              d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="h-4 w-4"
+                            >
+                              <rect
+                                x="9"
+                                y="9"
+                                width="13"
+                                height="13"
+                                rx="2"
+                                ry="2"
+                              />
+                              <path
+                                d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                              />
+                            </svg>
+                          </button>
 
-                        <a
-                          v-if="explorerUrl(d.network, d.txid)"
-                          :href="explorerUrl(d.network, d.txid) || undefined"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-green hover:opacity-90"
-                          :title="`Open transaction in explorer`"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            class="h-4 w-4"
+                          <a
+                            v-if="explorerUrl(d.network, d.txid)"
+                            :href="explorerUrl(d.network, d.txid) || undefined"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-green hover:opacity-90"
+                            :title="`Open transaction in explorer`"
                           >
-                            <path d="M14 3h7v7" />
-                            <path d="M10 14L21 3" />
-                            <path
-                              d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"
-                            />
-                          </svg>
-                        </a>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="h-4 w-4"
+                            >
+                              <path d="M14 3h7v7" />
+                              <path d="M10 14L21 3" />
+                              <path
+                                d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"
+                              />
+                            </svg>
+                          </a>
+                        </div>
                       </div>
                     </td>
                   </tr>
