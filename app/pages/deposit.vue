@@ -46,6 +46,15 @@ const BASE_TO_KEYS: Record<BaseAsset, DepositAssetKey[]> = {
   SOL: ["SOL"],
 };
 
+const ASSET_ICONS: Record<BaseAsset, string> = {
+  BTC: "/coins/btc.png",
+  ETH: "/coins/eth.png",
+  USDT: "/coins/usdt.png",
+  USDC: "/coins/usdc.png",
+  TRX: "/coins/trx.png",
+  SOL: "/coins/sol.png",
+};
+
 const networkOptions = computed(() => {
   const allowed = new Set(BASE_TO_KEYS[base.value] || []);
   return DEPOSIT_ASSETS.filter((a) => allowed.has(a.key));
@@ -63,6 +72,23 @@ watch(
   { immediate: true },
 );
 
+function assetIconForBase(asset: BaseAsset) {
+  return ASSET_ICONS[asset];
+}
+
+function assetIconForDeposit(asset: string) {
+  const a = String(asset || "").toUpperCase();
+
+  if (a === "BTC") return "/coins/btc.png";
+  if (a === "ETH") return "/coins/eth.png";
+  if (a === "USDT") return "/coins/usdt.png";
+  if (a === "USDC") return "/coins/usdc.png";
+  if (a === "TRX") return "/coins/trx.png";
+  if (a === "SOL") return "/coins/sol.png";
+
+  return null;
+}
+
 function formatDate(value: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleString();
@@ -73,6 +99,7 @@ function shortHash(value: string | null, start = 10, end = 8) {
   if (value.length <= start + end + 3) return value;
   return `${value.slice(0, start)}...${value.slice(-end)}`;
 }
+
 function displayStatus(status: string | null) {
   const s = String(status || "").toLowerCase();
 
@@ -115,6 +142,7 @@ async function copyText(value: string | null) {
   if (!value) return;
   await navigator.clipboard.writeText(value);
 }
+
 async function copyAddress() {
   const addr = result.value?.deposit?.address;
   if (!addr) return;
@@ -252,7 +280,14 @@ onMounted(async () => {
                     : 'border-nuxt-border bg-nuxt-bg'
                 "
               >
-                <div class="text-sm font-semibold">{{ b }}</div>
+                <div class="flex items-center gap-3">
+                  <img
+                    :src="assetIconForBase(b as BaseAsset)"
+                    :alt="`${b} logo`"
+                    class="h-7 w-7 rounded-full object-contain"
+                  />
+                  <div class="text-sm font-semibold">{{ b }}</div>
+                </div>
               </button>
             </div>
 
@@ -277,7 +312,14 @@ onMounted(async () => {
                       : 'border-nuxt-border bg-nuxt-bg'
                   "
                 >
-                  <div class="text-sm font-semibold">{{ a.label }}</div>
+                  <div class="flex items-center gap-3">
+                    <img
+                      :src="assetIconForBase(base)"
+                      :alt="`${base} logo`"
+                      class="h-7 w-7 rounded-full object-contain"
+                    />
+                    <div class="text-sm font-semibold">{{ a.label }}</div>
+                  </div>
                 </button>
               </div>
             </div>
@@ -388,7 +430,15 @@ onMounted(async () => {
                   </td>
 
                   <td class="whitespace-nowrap px-3 py-3">
-                    <div class="font-medium">{{ d.asset }}</div>
+                    <div class="flex items-center gap-2">
+                      <img
+                        v-if="assetIconForDeposit(d.asset)"
+                        :src="assetIconForDeposit(d.asset) || undefined"
+                        :alt="`${d.asset} logo`"
+                        class="h-5 w-5 rounded-full object-contain"
+                      />
+                      <div class="font-medium">{{ d.asset }}</div>
+                    </div>
                   </td>
 
                   <td class="whitespace-nowrap px-3 py-3">
