@@ -41,7 +41,7 @@ const BASE_TO_KEYS: Record<BaseAsset, DepositAssetKey[]> = {
   BTC: ["BTC"],
   ETH: ["ETH"],
   USDT: ["USDT_ERC20", "USDT_TRC20", "USDT_BEP20"],
-  USDC: ["USDC_SPL"],
+  USDC: ["USDC_SPL", "USDC_ERC20"],
   TRX: ["TRX"],
   SOL: ["SOL"],
 };
@@ -73,7 +73,48 @@ function shortHash(value: string | null, start = 10, end = 8) {
   if (value.length <= start + end + 3) return value;
   return `${value.slice(0, start)}...${value.slice(-end)}`;
 }
+function displayStatus(status: string | null) {
+  const s = String(status || "").toLowerCase();
 
+  if (s.includes("pending")) return "Pending";
+  if (s.includes("confirm") || s.includes("complete")) return "Complete";
+
+  return status || "—";
+}
+
+function explorerUrl(network: string, txid: string | null) {
+  if (!txid) return null;
+
+  const n = String(network || "").toUpperCase();
+
+  if (n === "BTC") {
+    return `https://mempool.space/testnet/tx/${txid}`;
+  }
+
+  if (
+    n === "ETH" ||
+    n === "ETH_USDT" ||
+    n === "USDT_ERC20" ||
+    n === "USDC_ERC20"
+  ) {
+    return `https://sepolia.etherscan.io/tx/${txid}`;
+  }
+
+  if (n === "TRX" || n === "USDT_TRC20") {
+    return `https://nile.tronscan.org/#/transaction/${txid}`;
+  }
+
+  if (n === "SOL" || n === "USDC_SPL") {
+    return `https://solscan.io/tx/${txid}`;
+  }
+
+  return null;
+}
+
+async function copyText(value: string | null) {
+  if (!value) return;
+  await navigator.clipboard.writeText(value);
+}
 async function copyAddress() {
   const addr = result.value?.deposit?.address;
   if (!addr) return;
@@ -237,7 +278,6 @@ onMounted(async () => {
                   "
                 >
                   <div class="text-sm font-semibold">{{ a.label }}</div>
-                  <div class="text-xs text-nuxt-muted">{{ a.key }}</div>
                 </button>
               </div>
             </div>
@@ -292,13 +332,13 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Deposit history -->
+        <!-- Recent Deposits -->
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <h2 class="text-lg font-semibold">Deposit History</h2>
+              <h2 class="text-lg font-semibold">Recent Deposits</h2>
               <p class="mt-1 text-sm text-nuxt-muted">
-                Chronology of deposits received on your addresses.
+                Your latest deposits received on assigned addresses.
               </p>
             </div>
 
@@ -334,10 +374,6 @@ onMounted(async () => {
                   <th class="px-3 py-3 font-medium">Asset</th>
                   <th class="px-3 py-3 font-medium">Amount</th>
                   <th class="px-3 py-3 font-medium">Status</th>
-                  <th class="px-3 py-3 font-medium">Confirmations</th>
-                  <th class="px-3 py-3 font-medium">Executed</th>
-                  <th class="px-3 py-3 font-medium">Confirmed</th>
-                  <th class="px-3 py-3 font-medium">Address</th>
                   <th class="px-3 py-3 font-medium">TxID</th>
                 </tr>
               </thead>
@@ -347,37 +383,46 @@ onMounted(async () => {
                   :key="d.id"
                   class="border-b border-nuxt-border/60 align-top"
                 >
-                  <td class="px-3 py-3 whitespace-nowrap">
+                  <td class="whitespace-nowrap px-3 py-3">
                     {{ formatDate(d.createdAt) }}
                   </td>
-                  <td class="px-3 py-3 whitespace-nowrap">
+
+                  <td class="whitespace-nowrap px-3 py-3">
                     <div class="font-medium">{{ d.asset }}</div>
-                    <div class="text-xs text-nuxt-muted">{{ d.network }}</div>
                   </td>
-                  <td class="px-3 py-3 whitespace-nowrap">
+
+                  <td class="whitespace-nowrap px-3 py-3">
                     {{ d.amount ?? "—" }}
                   </td>
-                  <td class="px-3 py-3 whitespace-nowrap">
-                    {{ d.status }}
+
+                  <td class="whitespace-nowrap px-3 py-3">
+                    {{ displayStatus(d.status) }}
                   </td>
-                  <td class="px-3 py-3 whitespace-nowrap">
-                    {{ d.confirmations ?? "—" }}
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap">
-                    {{ formatDate(d.executedAt) }}
-                  </td>
-                  <td class="px-3 py-3 whitespace-nowrap">
-                    {{ formatDate(d.confirmedAt) }}
-                  </td>
+
                   <td class="px-3 py-3">
-                    <span :title="d.address">{{
-                      shortHash(d.address, 12, 8)
-                    }}</span>
-                  </td>
-                  <td class="px-3 py-3">
-                    <span :title="d.txid || ''">{{
-                      shortHash(d.txid, 12, 8)
-                    }}</span>
+                    <div class="flex items-center gap-2">
+                      <span :title="d.txid || ''">
+                        {{ shortHash(d.txid, 12, 8) }}
+                      </span>
+
+                      <button
+                        v-if="d.txid"
+                        class="rounded-md border border-nuxt-border bg-nuxt-bg px-2 py-1 text-xs hover:opacity-90"
+                        @click="copyText(d.txid)"
+                      >
+                        Copy
+                      </button>
+
+                      <a
+                        v-if="explorerUrl(d.network, d.txid)"
+                        :href="explorerUrl(d.network, d.txid) || undefined"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-xs text-nuxt-green underline underline-offset-2"
+                      >
+                        Explorer
+                      </a>
+                    </div>
                   </td>
                 </tr>
               </tbody>
