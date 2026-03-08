@@ -3,6 +3,25 @@ import { DEPOSIT_ASSETS, type DepositAssetKey } from "~/shared/deposits";
 
 type BaseAsset = "BTC" | "ETH" | "USDT" | "USDC" | "TRX" | "SOL";
 
+type DepositHistoryItem = {
+  id: number;
+  userId: number;
+  asset: string;
+  network: string;
+  amount: string | null;
+  uniwireInvoiceId: string;
+  address: string;
+  uniwireTransactionId: string | null;
+  txid: string | null;
+  status: string;
+  executedAt: string | null;
+  confirmedAt: string | null;
+  confirmations: number | null;
+  creditedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const me = ref<any>(null);
 
 const base = ref<BaseAsset>("BTC");
@@ -10,15 +29,18 @@ const selected = ref<DepositAssetKey>("BTC");
 
 const loading = ref(false);
 const refreshing = ref(false);
+const historyLoading = ref(false);
 const error = ref<string | null>(null);
+const historyError = ref<string | null>(null);
 const result = ref<any>(null);
 
+const deposits = ref<DepositHistoryItem[]>([]);
 const copied = ref(false);
 
 const BASE_TO_KEYS: Record<BaseAsset, DepositAssetKey[]> = {
-  BTC: ["BTC"], // later you can add "BTC_LN"
+  BTC: ["BTC"],
   ETH: ["ETH"],
-  USDT: ["USDT_ERC20", "USDT_TRC20", "USDT_BEP20"], // add "USDT_TRC20", "USDT_BEP20", "USDT_SPL" when you have them
+  USDT: ["USDT_ERC20", "USDT_TRC20", "USDT_BEP20"],
   USDC: ["USDC_SPL"],
   TRX: ["TRX"],
   SOL: ["SOL"],
@@ -29,19 +51,28 @@ const networkOptions = computed(() => {
   return DEPOSIT_ASSETS.filter((a) => allowed.has(a.key));
 });
 
-// When user clicks a base asset, automatically select the first available network for it
 watch(
   base,
   () => {
     const first = BASE_TO_KEYS[base.value]?.[0];
     if (first) selected.value = first;
-    // clear old result so user doesn't see wrong-chain address
     result.value = null;
     error.value = null;
     copied.value = false;
   },
   { immediate: true },
 );
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString();
+}
+
+function shortHash(value: string | null, start = 10, end = 8) {
+  if (!value) return "—";
+  if (value.length <= start + end + 3) return value;
+  return `${value.slice(0, start)}...${value.slice(-end)}`;
+}
 
 async function copyAddress() {
   const addr = result.value?.deposit?.address;
@@ -68,6 +99,25 @@ async function loadMe() {
   }
 }
 
+async function loadDeposits() {
+  historyError.value = null;
+  historyLoading.value = true;
+
+  try {
+    const res: any = await $fetch("/api/deposits");
+    deposits.value = Array.isArray(res?.deposits) ? res.deposits : [];
+  } catch (e: any) {
+    deposits.value = [];
+    historyError.value =
+      e?.data?.message ||
+      e?.data?.statusMessage ||
+      e?.message ||
+      "Failed to load deposit history";
+  } finally {
+    historyLoading.value = false;
+  }
+}
+
 async function createDeposit() {
   if (!me.value) return;
 
@@ -77,11 +127,12 @@ async function createDeposit() {
   copied.value = false;
 
   try {
-    // Amount intentionally omitted (reusable address flow)
     result.value = await $fetch("/api/deposit", {
       method: "POST",
       body: { assetKey: selected.value },
     });
+
+    await loadDeposits();
   } catch (e: any) {
     error.value =
       e?.data?.message ||
@@ -93,14 +144,19 @@ async function createDeposit() {
   }
 }
 
-onMounted(loadMe);
+onMounted(async () => {
+  await loadMe();
+  if (me.value) {
+    await loadDeposits();
+  }
+});
 </script>
 
 <template>
   <div class="mx-auto max-w-6xl px-6 py-10">
     <div class="grid gap-6 lg:grid-cols-3">
       <!-- LEFT -->
-      <div class="lg:col-span-2 space-y-6">
+      <div class="space-y-6 lg:col-span-2">
         <!-- Session card -->
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
           <div class="flex items-center justify-between">
@@ -142,20 +198,12 @@ onMounted(loadMe);
           </p>
 
           <div class="mt-5 space-y-4">
-            <!-- Base asset tiles -->
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <button
-                v-for="b in [
-                  'BTC',
-                  'ETH',
-                  'USDT',
-                  'USDC',
-                  'TRX',
-                  'SOL',
-                ] as const"
+                v-for="b in ['BTC', 'ETH', 'USDT', 'USDC', 'TRX', 'SOL']"
                 :key="b"
                 type="button"
-                @click="base = b"
+                @click="base = b as BaseAsset"
                 class="rounded-xl border px-3 py-3 text-left transition"
                 :class="
                   base === b
@@ -167,7 +215,6 @@ onMounted(loadMe);
               </button>
             </div>
 
-            <!-- Network tiles -->
             <div>
               <div class="text-sm text-nuxt-muted">Network</div>
 
@@ -177,11 +224,10 @@ onMounted(loadMe);
                   :key="a.key"
                   type="button"
                   @click="
-  selected = a.key;
-  result = null;
-  error = null;
-  copied = false;
-"
+                    selected = a.key;
+                    result = null;
+                    error = null;
+                    copied = false;
                   "
                   class="rounded-xl border px-3 py-3 text-left transition"
                   :class="
@@ -222,9 +268,9 @@ onMounted(loadMe);
                   >
                     Copy
                   </button>
-                  <span v-if="copied" class="text-xs text-nuxt-muted"
-                    >Copied</span
-                  >
+                  <span v-if="copied" class="text-xs text-nuxt-muted">
+                    Copied
+                  </span>
                   <span
                     v-if="result?.deposit?.reused"
                     class="text-xs text-nuxt-muted"
@@ -245,6 +291,99 @@ onMounted(loadMe);
             </div>
           </div>
         </div>
+
+        <!-- Deposit history -->
+        <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-semibold">Deposit History</h2>
+              <p class="mt-1 text-sm text-nuxt-muted">
+                Chronology of deposits received on your addresses.
+              </p>
+            </div>
+
+            <button
+              class="rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-sm hover:opacity-90 disabled:opacity-60"
+              :disabled="historyLoading || !me"
+              @click="loadDeposits"
+            >
+              {{ historyLoading ? "Loading..." : "Refresh history" }}
+            </button>
+          </div>
+
+          <p v-if="historyError" class="mt-4 text-sm text-red-400">
+            {{ historyError }}
+          </p>
+
+          <div v-else-if="historyLoading" class="mt-4 text-sm text-nuxt-muted">
+            Loading deposit history...
+          </div>
+
+          <div
+            v-else-if="!deposits.length"
+            class="mt-4 rounded-xl border border-nuxt-border bg-nuxt-bg p-4 text-sm text-nuxt-muted"
+          >
+            No deposits yet.
+          </div>
+
+          <div v-else class="mt-4 overflow-x-auto">
+            <table class="min-w-full text-left text-sm">
+              <thead class="text-nuxt-muted">
+                <tr class="border-b border-nuxt-border">
+                  <th class="px-3 py-3 font-medium">Created</th>
+                  <th class="px-3 py-3 font-medium">Asset</th>
+                  <th class="px-3 py-3 font-medium">Amount</th>
+                  <th class="px-3 py-3 font-medium">Status</th>
+                  <th class="px-3 py-3 font-medium">Confirmations</th>
+                  <th class="px-3 py-3 font-medium">Executed</th>
+                  <th class="px-3 py-3 font-medium">Confirmed</th>
+                  <th class="px-3 py-3 font-medium">Address</th>
+                  <th class="px-3 py-3 font-medium">TxID</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="d in deposits"
+                  :key="d.id"
+                  class="border-b border-nuxt-border/60 align-top"
+                >
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    {{ formatDate(d.createdAt) }}
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <div class="font-medium">{{ d.asset }}</div>
+                    <div class="text-xs text-nuxt-muted">{{ d.network }}</div>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    {{ d.amount ?? "—" }}
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    {{ d.status }}
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    {{ d.confirmations ?? "—" }}
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    {{ formatDate(d.executedAt) }}
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    {{ formatDate(d.confirmedAt) }}
+                  </td>
+                  <td class="px-3 py-3">
+                    <span :title="d.address">{{
+                      shortHash(d.address, 12, 8)
+                    }}</span>
+                  </td>
+                  <td class="px-3 py-3">
+                    <span :title="d.txid || ''">{{
+                      shortHash(d.txid, 12, 8)
+                    }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- RIGHT -->
@@ -261,6 +400,7 @@ onMounted(loadMe);
             <li>
               4) Server reuses an address from DB or creates one at Uniwire.
             </li>
+            <li>5) Transaction callbacks update the deposit chronology.</li>
           </ul>
 
           <div
