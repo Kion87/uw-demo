@@ -36,6 +36,7 @@ const result = ref<any>(null);
 
 const deposits = ref<DepositHistoryItem[]>([]);
 const copied = ref(false);
+const showRecentDeposits = ref(true);
 
 const BASE_TO_KEYS: Record<BaseAsset, DepositAssetKey[]> = {
   BTC: ["BTC"],
@@ -114,24 +115,19 @@ function explorerUrl(network: string, txid: string | null) {
 
   const n = String(network || "").toUpperCase();
 
-  if (n === "BTC") {
+  if (n.includes("BTC")) {
     return `https://mempool.space/testnet/tx/${txid}`;
   }
 
-  if (
-    n === "ETH" ||
-    n === "ETH_USDT" ||
-    n === "USDT_ERC20" ||
-    n === "USDC_ERC20"
-  ) {
+  if (n.includes("ETH")) {
     return `https://sepolia.etherscan.io/tx/${txid}`;
   }
 
-  if (n === "TRX" || n === "USDT_TRC20") {
+  if (n.includes("TRX") || n.includes("TRON")) {
     return `https://nile.tronscan.org/#/transaction/${txid}`;
   }
 
-  if (n === "SOL" || n === "USDC_SPL") {
+  if (n.includes("SOL")) {
     return `https://solscan.io/tx/${txid}`;
   }
 
@@ -385,98 +381,141 @@ onMounted(async () => {
             </div>
 
             <button
-              class="rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-sm hover:opacity-90 disabled:opacity-60"
-              :disabled="historyLoading || !me"
-              @click="loadDeposits"
+              class="rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-sm hover:opacity-90"
+              @click="showRecentDeposits = !showRecentDeposits"
             >
-              {{ historyLoading ? "Loading..." : "Refresh history" }}
+              {{ showRecentDeposits ? "Hide" : "Show" }}
             </button>
           </div>
 
-          <p v-if="historyError" class="mt-4 text-sm text-red-400">
-            {{ historyError }}
-          </p>
+          <div v-if="showRecentDeposits">
+            <p v-if="historyError" class="mt-4 text-sm text-red-400">
+              {{ historyError }}
+            </p>
 
-          <div v-else-if="historyLoading" class="mt-4 text-sm text-nuxt-muted">
-            Loading deposit history...
-          </div>
+            <div
+              v-else-if="historyLoading"
+              class="mt-4 text-sm text-nuxt-muted"
+            >
+              Loading deposit history...
+            </div>
 
-          <div
-            v-else-if="!deposits.length"
-            class="mt-4 rounded-xl border border-nuxt-border bg-nuxt-bg p-4 text-sm text-nuxt-muted"
-          >
-            No deposits yet.
-          </div>
+            <div
+              v-else-if="!deposits.length"
+              class="mt-4 rounded-xl border border-nuxt-border bg-nuxt-bg p-4 text-sm text-nuxt-muted"
+            >
+              No deposits yet.
+            </div>
 
-          <div v-else class="mt-4 overflow-x-auto">
-            <table class="min-w-full text-left text-sm">
-              <thead class="text-nuxt-muted">
-                <tr class="border-b border-nuxt-border">
-                  <th class="px-3 py-3 font-medium">Created</th>
-                  <th class="px-3 py-3 font-medium">Asset</th>
-                  <th class="px-3 py-3 font-medium">Amount</th>
-                  <th class="px-3 py-3 font-medium">Status</th>
-                  <th class="px-3 py-3 font-medium">TxID</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="d in deposits"
-                  :key="d.id"
-                  class="border-b border-nuxt-border/60 align-top"
-                >
-                  <td class="whitespace-nowrap px-3 py-3">
-                    {{ formatDate(d.createdAt) }}
-                  </td>
+            <div v-else class="mt-4 overflow-x-auto">
+              <table class="min-w-full text-left text-sm">
+                <thead class="text-nuxt-muted">
+                  <tr class="border-b border-nuxt-border">
+                    <th class="px-3 py-3 font-medium">Created</th>
+                    <th class="px-3 py-3 font-medium">Asset</th>
+                    <th class="px-3 py-3 font-medium">Amount</th>
+                    <th class="px-3 py-3 font-medium">Status</th>
+                    <th class="px-3 py-3 font-medium">TxID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="d in deposits"
+                    :key="d.id"
+                    class="border-b border-nuxt-border/60 align-top"
+                  >
+                    <td class="whitespace-nowrap px-3 py-3">
+                      {{ formatDate(d.createdAt) }}
+                    </td>
 
-                  <td class="whitespace-nowrap px-3 py-3">
-                    <div class="flex items-center gap-2">
-                      <img
-                        v-if="assetIconForDeposit(d.asset)"
-                        :src="assetIconForDeposit(d.asset) || undefined"
-                        :alt="`${d.asset} logo`"
-                        class="h-5 w-5 rounded-full object-contain"
-                      />
-                      <div class="font-medium">{{ d.asset }}</div>
-                    </div>
-                  </td>
+                    <td class="whitespace-nowrap px-3 py-3">
+                      <div class="flex items-center gap-2">
+                        <img
+                          v-if="assetIconForDeposit(d.asset)"
+                          :src="assetIconForDeposit(d.asset) || undefined"
+                          :alt="`${d.asset} logo`"
+                          class="h-5 w-5 rounded-full object-contain"
+                        />
+                        <div class="font-medium">{{ d.asset }}</div>
+                      </div>
+                    </td>
 
-                  <td class="whitespace-nowrap px-3 py-3">
-                    {{ d.amount ?? "—" }}
-                  </td>
+                    <td class="whitespace-nowrap px-3 py-3">
+                      {{ d.amount ?? "—" }}
+                    </td>
 
-                  <td class="whitespace-nowrap px-3 py-3">
-                    {{ displayStatus(d.status) }}
-                  </td>
+                    <td class="whitespace-nowrap px-3 py-3">
+                      {{ displayStatus(d.status) }}
+                    </td>
 
-                  <td class="px-3 py-3">
-                    <div class="flex items-center gap-2">
-                      <span :title="d.txid || ''">
-                        {{ shortHash(d.txid, 12, 8) }}
-                      </span>
+                    <td class="px-3 py-3">
+                      <div class="flex min-w-[260px] items-center gap-3">
+                        <span class="truncate" :title="d.txid || ''">
+                          {{ shortHash(d.txid, 12, 8) }}
+                        </span>
 
-                      <button
-                        v-if="d.txid"
-                        class="rounded-md border border-nuxt-border bg-nuxt-bg px-2 py-1 text-xs hover:opacity-90"
-                        @click="copyText(d.txid)"
-                      >
-                        Copy
-                      </button>
+                        <button
+                          v-if="d.txid"
+                          type="button"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-text hover:opacity-90"
+                          :title="`Copy ${d.txid}`"
+                          @click="copyText(d.txid)"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="h-4 w-4"
+                          >
+                            <rect
+                              x="9"
+                              y="9"
+                              width="13"
+                              height="13"
+                              rx="2"
+                              ry="2"
+                            />
+                            <path
+                              d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                            />
+                          </svg>
+                        </button>
 
-                      <a
-                        v-if="explorerUrl(d.network, d.txid)"
-                        :href="explorerUrl(d.network, d.txid) || undefined"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-xs text-nuxt-green underline underline-offset-2"
-                      >
-                        Explorer
-                      </a>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                        <a
+                          v-if="explorerUrl(d.network, d.txid)"
+                          :href="explorerUrl(d.network, d.txid) || undefined"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-green hover:opacity-90"
+                          :title="`Open transaction in explorer`"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="h-4 w-4"
+                          >
+                            <path d="M14 3h7v7" />
+                            <path d="M10 14L21 3" />
+                            <path
+                              d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"
+                            />
+                          </svg>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
