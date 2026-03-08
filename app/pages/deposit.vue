@@ -411,11 +411,11 @@ onMounted(async () => {
               <table class="min-w-full text-left text-sm">
                 <thead class="text-nuxt-muted">
                   <tr class="border-b border-nuxt-border">
-                    <th class="px-3 py-3 font-medium">Created</th>
-                    <th class="px-3 py-3 font-medium">Asset</th>
-                    <th class="px-3 py-3 font-medium">Amount</th>
-                    <th class="px-3 py-3 font-medium">Status</th>
-                    <th class="px-3 py-3 font-medium">TxID</th>
+                    <th class="px-4 py-3 font-medium">Created</th>
+                    <th class="px-4 py-3 font-medium">Asset</th>
+                    <th class="px-4 py-3 font-medium">Amount</th>
+                    <th class="px-4 py-3 font-medium">Status</th>
+                    <th class="px-4 py-3 font-medium">TxID</th>
                   </tr>
                 </thead>
                 <tbody>
