@@ -1,59 +1,82 @@
-# DATABASE_SCHEMA.md
-
 # UW Demo — Database Schema (Conceptual)
 
 ## User
 
-- id (Int, PK)
-- publicId (String, unique-ish in practice; used for passthrough lookup)
-- email (String)
-  (Optional future)
-- balance (Decimal) — if you implement direct balance crediting
+- `id` (Int, PK)
+- `publicId` (String, unique in practice; used for passthrough lookup)
+- `email` (String)
+- optional future:
+  - `balance` (Decimal)
 
 ## Session
 
-- token (String)
-- userId (Int)
-- expiresAt (DateTime)
+- `token` (String)
+- `userId` (Int)
+- `expiresAt` (DateTime)
 
 ## DepositAddress (Reusable Addresses)
 
-- userId (Int)
-- assetKey (String) — used as the chain reuseKey (ETH/TRX/SOL/BTC)
-- invoiceId (String)
-- address (String)
+Purpose:
 
-Unique:
+- stores reusable deposit addresses per user / supported asset flow
 
-- (userId, assetKey)
+Fields:
+
+- `id`
+- `userId`
+- `assetKey`
+- `invoiceId`
+- `address`
+- `createdAt`
+- `updatedAt`
+
+Unique / indexes:
+
+- unique: `(userId, assetKey)`
+- index: `userId`
 
 ## Deposit (One Row Per Actual Transaction)
 
 Key points:
 
-- A reusable invoice/address can receive multiple transactions
-- Therefore: deposits must be keyed by transaction id
+- one reusable invoice/address can receive many transactions
+- deposits must therefore be keyed by transaction id, not invoice id
+- later callbacks update the same row
 
-Fields (typical):
+Fields:
 
-- userId (Int)
-- asset (String) — should map to paid currency (e.g. USDT)
-- network (String) — chain (e.g. ETH/TRX); note tx.kind may be token-specific like ETH_USDT
-- amount (Decimal?)
-- uniwireInvoiceId (String) — NOT unique
-- uniwireTransactionId (String) — UNIQUE (idempotency key)
-- txid (String?)
-- address (String)
-- status (String) — callback_status or tx.status
-- createdAt/updatedAt
-
-## UniwireCallback (Delivery Log)
-
-- id (Int, PK)
-- callbackId (String, UNIQUE)
-- receivedAt (DateTime)
+- `id`
+- `userId`
+- `asset`
+- `network`
+- `amount`
+- `uniwireInvoiceId` — **not unique**
+- `address`
+- `uniwireTransactionId` — unique idempotency key; nullable before transaction exists
+- `txid`
+- `status`
+- `executedAt`
+- `confirmedAt`
+- `confirmations`
+- `creditedAt`
+- `createdAt`
+- `updatedAt`
 
 Notes:
 
-- callbackId uniqueness prevents duplicate delivery logging
-- resends may reuse callbackId; do not break processing if callbackId already exists
+- `status` should reflect transaction lifecycle such as pending / confirmed / complete
+- `creditedAt` is reserved for idempotent balance crediting later
+- `executedAt` / `confirmedAt` may be null on pending callbacks and filled later on confirmed callbacks
+
+## UniwireCallback (Delivery Log)
+
+Fields:
+
+- `id` (Int, PK)
+- `callbackId` (String, UNIQUE)
+- `receivedAt` (DateTime)
+
+Notes:
+
+- prevents duplicate delivery logging
+- duplicate callback ids must not prevent deposit upsert processing
