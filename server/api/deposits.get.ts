@@ -1,24 +1,10 @@
-import { PrismaClient } from "@prisma/client";
-import { getCookie, createError } from "h3";
-
-const prisma = new PrismaClient();
+import { createError } from "h3";
+import { prisma } from "../utils/prisma";
+import { requireUser } from "../utils/auth";
 
 export default defineEventHandler(async (event) => {
-  const token = getCookie(event, "session");
-
-  if (!token) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: "Unauthorized",
-    });
-  }
-
-  const session = await prisma.session.findUnique({
-    where: { token },
-    include: { user: true },
-  });
-
-  if (!session || session.expiresAt < new Date()) {
+  const user = await requireUser(event);
+  if (!user) {
     throw createError({
       statusCode: 401,
       statusMessage: "Unauthorized",
@@ -26,7 +12,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const deposits = await prisma.deposit.findMany({
-    where: { userId: session.userId },
+    where: { userId: user.id },
     orderBy: { createdAt: "desc" },
   });
 

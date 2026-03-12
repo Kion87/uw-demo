@@ -119,12 +119,12 @@ onMounted(loadDashboard);
           <div
             class="rounded-full bg-emerald-500/15 px-4 py-2 text-emerald-300 ring-1 ring-emerald-500/30"
           >
-            Webhook connected
+            {{ dashboard?.summary?.totalDeposits ?? 0 }} deposits recorded
           </div>
           <div
             class="rounded-full bg-sky-500/15 px-4 py-2 text-sky-300 ring-1 ring-sky-500/30"
           >
-            Address reuse enabled
+            {{ dashboard?.summary?.assignedAddresses ?? 0 }} addresses assigned
           </div>
         </div>
       </section>
