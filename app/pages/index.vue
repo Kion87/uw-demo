@@ -21,15 +21,29 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleString();
 }
 
-function formatStatus(status?: string | null) {
-  if (!status) return "—";
-  return status.replaceAll("_", " ");
+function formatShortDate(value?: string | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
-function shortText(value?: string | null, start = 10, end = 8) {
-  if (!value) return "—";
-  if (value.length <= start + end + 3) return value;
-  return `${value.slice(0, start)}...${value.slice(-end)}`;
+function formatUsd(value?: number | null) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(value ?? 0);
+}
+
+function formatCrypto(value?: string | null) {
+  if (!value) return "0";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
 function copyText(value?: string | null) {
@@ -37,31 +51,28 @@ function copyText(value?: string | null) {
   navigator.clipboard.writeText(value);
 }
 
-function statusBadgeClass(status?: string | null) {
-  if (!status) return "bg-white/5 text-slate-300 ring-1 ring-white/10";
+const ASSET_BADGE: Record<string, { bg: string; glyph: string; fg: string }> = {
+  USD: { bg: "bg-nuxt-gold", glyph: "$", fg: "text-black" },
+  BTC: { bg: "bg-nuxt-orange", glyph: "₿", fg: "text-black" },
+  ETH: { bg: "bg-nuxt-violet", glyph: "Ξ", fg: "text-black" },
+  USDT: { bg: "bg-nuxt-emerald", glyph: "₮", fg: "text-black" },
+};
 
-  const s = status.toLowerCase();
-
-  if (s.includes("complete") || s.includes("confirmed")) {
-    return "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30";
-  }
-
-  if (s.includes("pending") || s.includes("new")) {
-    return "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30";
-  }
-
-  return "bg-white/5 text-slate-300 ring-1 ring-white/10";
+function assetBadge(asset: string) {
+  return (
+    ASSET_BADGE[asset] ?? {
+      bg: "bg-nuxt-muted",
+      glyph: asset.slice(0, 1),
+      fg: "text-black",
+    }
+  );
 }
 
-function activityBadgeClass(type?: string | null) {
-  if (!type) return "bg-white/5 text-slate-300 ring-1 ring-white/10";
-  if (type === "deposit_completed") {
-    return "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30";
+function pillClass(status?: string | null) {
+  if (status === "completed") {
+    return "bg-nuxt-emerald/15 text-nuxt-emerald";
   }
-  if (type === "address_assigned") {
-    return "bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30";
-  }
-  return "bg-white/5 text-slate-300 ring-1 ring-white/10";
+  return "bg-nuxt-gold/15 text-nuxt-gold";
 }
 
 onMounted(loadDashboard);
@@ -70,341 +81,238 @@ onMounted(loadDashboard);
 <template>
   <div class="space-y-8">
     <section>
-      <h1 class="text-4xl font-bold tracking-tight text-white">Dashboard</h1>
-      <p class="mt-3 text-lg text-slate-400">
-        Overview of assigned addresses, credited balances, deposits, and latest
-        activity.
+      <h1 class="font-display text-[34px] font-bold tracking-tight text-nuxt-text">
+        Dashboard
+      </h1>
+      <p class="mt-1.5 text-[15px] text-nuxt-muted">
+        Your balances, deposits, and activity at a glance.
       </p>
     </section>
 
     <div
       v-if="loading"
-      class="rounded-3xl border border-white/10 bg-white/5 p-6 text-slate-300"
+      class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6 text-nuxt-muted"
     >
       Loading dashboard...
     </div>
 
     <div
       v-else-if="error"
-      class="rounded-3xl border border-rose-500/20 bg-rose-500/10 p-6 text-rose-200"
+      class="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-rose-300"
     >
       {{ error }}
     </div>
 
     <template v-else>
-      <!-- Welcome -->
+      <!-- Total Balance hero -->
       <section
-        class="rounded-3xl border border-white/10 bg-gradient-to-r from-slate-900/90 to-blue-950/90 p-8"
+        class="relative overflow-hidden rounded-[18px] border border-nuxt-gold/30 bg-gradient-to-br from-nuxt-heroFrom to-nuxt-heroTo p-6 sm:p-9 sm:px-10"
       >
-        <h2 class="text-2xl font-semibold text-white">
-          Welcome back, User {{ dashboard?.user?.publicId || "—" }}
-        </h2>
+        <div class="relative text-[12.5px] font-bold uppercase tracking-[0.1em] text-nuxt-gold">
+          Total Balance
+        </div>
+        <div class="relative mt-2.5 font-display text-[34px] font-bold leading-none text-nuxt-text sm:text-[56px]">
+          {{ formatUsd(dashboard?.totalBalanceUsd) }}
+        </div>
+        <div class="relative mt-1.5 text-[13px] text-nuxt-muted2">
+          Credited balances only, not raw deposit totals.
+        </div>
 
-        <p class="mt-3 text-slate-300">
-          Track your assigned addresses, credited balances, recent deposits, and
-          system activity.
-        </p>
-
-        <div class="mt-6 flex flex-wrap gap-3 text-sm">
+        <div class="relative mt-6 flex flex-wrap gap-3">
           <div
-            class="rounded-full bg-white/5 px-4 py-2 text-slate-300 ring-1 ring-white/10"
+            v-for="balance in dashboard?.balances"
+            :key="balance.asset"
+            class="flex items-center gap-2.5 rounded-xl border px-4 py-2.5"
+            :class="
+              balance.credited
+                ? 'border-white/10 bg-white/[0.06]'
+                : 'border-dashed border-white/10 bg-white/[0.03] opacity-60'
+            "
           >
-            Email: {{ dashboard?.user?.email || "—" }}
-          </div>
-          <div
-            class="rounded-full bg-white/5 px-4 py-2 text-slate-300 ring-1 ring-white/10"
-          >
-            Public ID: {{ dashboard?.user?.publicId || "—" }}
-          </div>
-          <div
-            class="rounded-full bg-emerald-500/15 px-4 py-2 text-emerald-300 ring-1 ring-emerald-500/30"
-          >
-            {{ dashboard?.summary?.totalDeposits ?? 0 }} deposits recorded
-          </div>
-          <div
-            class="rounded-full bg-sky-500/15 px-4 py-2 text-sky-300 ring-1 ring-sky-500/30"
-          >
-            {{ dashboard?.summary?.assignedAddresses ?? 0 }} addresses assigned
-          </div>
-        </div>
-      </section>
-
-      <!-- Summary cards -->
-      <section class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <p class="text-sm text-slate-400">Assigned addresses</p>
-          <p class="mt-3 text-4xl font-bold text-white">
-            {{ dashboard?.summary?.assignedAddresses ?? 0 }}
-          </p>
-          <p class="mt-2 text-sm text-slate-500">
-            Current reusable deposit addresses
-          </p>
-        </div>
-
-        <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <p class="text-sm text-slate-400">Recent deposits</p>
-          <p class="mt-3 text-4xl font-bold text-white">
-            {{ dashboard?.summary?.totalDeposits ?? 0 }}
-          </p>
-          <p class="mt-2 text-sm text-slate-500">
-            Latest transaction rows stored in the system
-          </p>
-        </div>
-
-        <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <p class="text-sm text-slate-400">Completed deposits</p>
-          <p class="mt-3 text-4xl font-bold text-white">
-            {{ dashboard?.summary?.completedDeposits ?? 0 }}
-          </p>
-          <p class="mt-2 text-sm text-slate-500">
-            Deposits that reached confirmed or complete status
-          </p>
-        </div>
-
-        <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <p class="text-sm text-slate-400">Assets with credited balance</p>
-          <p class="mt-3 text-4xl font-bold text-white">
-            {{ dashboard?.summary?.activeBalances ?? 0 }}
-          </p>
-          <p class="mt-2 text-sm text-slate-500">
-            Will populate after balance crediting logic is added
-          </p>
-        </div>
-      </section>
-
-      <!-- Balances + Addresses -->
-      <section class="grid gap-6 xl:grid-cols-2">
-        <!-- Balances -->
-        <div class="rounded-3xl border border-white/10 bg-white/5 p-7">
-          <div class="flex items-center justify-between gap-4">
+            <div
+              class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+              :class="[assetBadge(balance.asset).bg, assetBadge(balance.asset).fg]"
+            >
+              {{ assetBadge(balance.asset).glyph }}
+            </div>
             <div>
-              <h3 class="text-2xl font-semibold text-white">
-                Current balances
-              </h3>
-              <p class="mt-2 text-slate-400">
-                Credited balances only, not raw deposit totals.
-              </p>
-            </div>
-
-            <button
-              class="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-2 text-sm text-white hover:bg-slate-900/60"
-              @click="loadDashboard"
-            >
-              Refresh
-            </button>
-          </div>
-
-          <div v-if="dashboard?.balances?.length" class="mt-6 space-y-3">
-            <div
-              v-for="balance in dashboard.balances"
-              :key="balance.asset"
-              class="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/30 p-4"
-            >
-              <div>
-                <p class="text-sm text-slate-400">Asset</p>
-                <p class="mt-1 text-lg font-semibold text-white">
-                  {{ balance.asset }}
-                </p>
+              <div class="text-[11px] text-nuxt-muted2">
+                {{ balance.label }}{{ balance.amount ? ` · ${formatCrypto(balance.amount)}` : "" }}
               </div>
-
-              <div class="text-right">
-                <p class="text-sm text-slate-400">Balance</p>
-                <p class="mt-1 text-lg font-semibold text-white">
-                  {{ balance.amount }}
-                </p>
+              <div class="font-mono text-[15px] font-semibold text-nuxt-text">
+                {{ formatUsd(balance.usdValue) }}
               </div>
             </div>
-          </div>
-
-          <div
-            v-else
-            class="mt-6 rounded-2xl border border-dashed border-white/10 bg-slate-950/20 p-5 text-slate-400"
-          >
-            No credited balances yet. This section will populate after we add
-            the deposit crediting logic.
-          </div>
-        </div>
-
-        <!-- Assigned addresses -->
-        <div class="rounded-3xl border border-white/10 bg-white/5 p-7">
-          <h3 class="text-2xl font-semibold text-white">Assigned addresses</h3>
-          <p class="mt-2 text-slate-400">
-            Current reusable addresses assigned to your account.
-          </p>
-
-          <div v-if="dashboard?.addresses?.length" class="mt-6 space-y-3">
-            <div
-              v-for="row in dashboard.addresses"
-              :key="row.assetKey + row.address"
-              class="rounded-2xl border border-white/10 bg-slate-950/30 p-4"
-            >
-              <div class="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p class="text-sm text-slate-400">Network</p>
-                  <p class="mt-1 text-lg font-semibold text-white">
-                    {{ row.networkLabel }}
-                  </p>
-                </div>
-
-                <div class="text-right">
-                  <p class="text-sm text-slate-400">Assigned</p>
-                  <p class="mt-1 text-sm text-slate-300">
-                    {{ formatDate(row.createdAt) }}
-                  </p>
-                </div>
-              </div>
-
-              <div class="mt-4 flex items-center gap-3">
-                <code
-                  class="flex-1 truncate rounded-xl bg-black/20 px-3 py-2 text-sm text-slate-200"
-                >
-                  {{ row.address }}
-                </code>
-
-                <button
-                  class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-white hover:bg-slate-900/60"
-                  @click="copyText(row.address)"
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-else
-            class="mt-6 rounded-2xl border border-dashed border-white/10 bg-slate-950/20 p-5 text-slate-400"
-          >
-            No assigned addresses yet. Create one from the Deposit tab.
           </div>
         </div>
       </section>
 
-      <!-- Recent deposits -->
-      <section class="rounded-3xl border border-white/10 bg-white/5 p-7">
-        <div class="flex items-center justify-between gap-4">
+      <!-- Stat grid -->
+      <section class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-5 px-6">
+          <p class="text-[12.5px] text-nuxt-muted2">Total deposits</p>
+          <p class="mt-2 font-display text-[28px] font-bold text-nuxt-text">
+            {{ formatUsd(dashboard?.stats?.totalDepositsUsd) }}
+          </p>
+          <p class="mt-2 text-xs font-semibold text-nuxt-emerald">
+            ↑ {{ dashboard?.stats?.totalDepositsCount ?? 0 }} transactions
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-5 px-6">
+          <p class="text-[12.5px] text-nuxt-muted2">Total withdrawals</p>
+          <p class="mt-2 font-display text-[28px] font-bold text-nuxt-text">
+            {{ formatUsd(dashboard?.stats?.totalWithdrawalsUsd) }}
+          </p>
+          <p class="mt-2 text-xs font-semibold text-nuxt-muted2">
+            {{ dashboard?.stats?.totalWithdrawalsCount ?? 0 }} transactions
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-nuxt-gold/30 bg-nuxt-panel p-5 px-6">
+          <p class="text-[12.5px] text-nuxt-muted2">Pending deposits</p>
+          <p class="mt-2 font-display text-[28px] font-bold text-nuxt-text">
+            {{ dashboard?.stats?.pendingDepositsCount ?? 0 }}
+          </p>
+          <p class="mt-2 text-xs font-semibold text-nuxt-gold">
+            Awaiting confirmation
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-5 px-6">
+          <p class="text-[12.5px] text-nuxt-muted2">Assigned addresses</p>
+          <p class="mt-2 font-display text-[28px] font-bold text-nuxt-text">
+            {{ dashboard?.stats?.assignedAddressesCount ?? 0 }}
+          </p>
+          <p class="mt-2 text-xs font-semibold text-nuxt-muted2">
+            {{ dashboard?.stats?.assignedAddressesNetworks }}
+          </p>
+        </div>
+      </section>
+
+      <!-- Recent activity -->
+      <section class="rounded-2xl border border-nuxt-border bg-nuxt-panel py-2">
+        <div class="flex items-baseline justify-between gap-4 px-6 pb-3 pt-5">
           <div>
-            <h3 class="text-2xl font-semibold text-white">Recent deposits</h3>
-            <p class="mt-2 text-slate-400">
-              Your latest deposits received on assigned addresses.
+            <h3 class="font-display text-[19px] font-bold text-nuxt-text">
+              Recent activity
+            </h3>
+            <p class="mt-1 text-[13px] text-nuxt-muted2">
+              Latest deposits and withdrawals across all assets.
             </p>
           </div>
-
-          <button
-            class="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-2 text-sm text-white hover:bg-slate-900/60"
-            @click="loadDashboard"
-          >
-            Refresh
-          </button>
         </div>
 
-        <div
-          v-if="dashboard?.recentDeposits?.length"
-          class="mt-6 overflow-x-auto"
-        >
-          <table class="min-w-full text-left">
-            <thead>
-              <tr class="border-b border-white/10 text-slate-400">
-                <th class="px-4 py-3 font-medium">Created</th>
-                <th class="px-4 py-3 font-medium">Asset</th>
-                <th class="px-4 py-3 font-medium text-right">Amount</th>
-                <th class="px-4 py-3 font-medium">Status</th>
-                <th class="px-4 py-3 font-medium">TxID</th>
-                <th class="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
+        <div v-if="dashboard?.recentActivity?.length">
+          <!-- Table (sm and up) -->
+          <div class="hidden sm:block">
+            <div
+              class="grid grid-cols-[1.2fr_1fr_1fr_1fr_auto] border-t border-white/[0.06] px-6 py-2.5 text-[11.5px] font-bold uppercase tracking-[0.05em] text-nuxt-muted2"
+            >
+              <span>Type</span>
+              <span>Amount</span>
+              <span>Asset</span>
+              <span>Date</span>
+              <span class="justify-self-end">Status</span>
+            </div>
 
-            <tbody>
-              <tr
-                v-for="row in dashboard.recentDeposits"
-                :key="row.id"
-                class="border-b border-white/5 text-white"
+            <div
+              v-for="row in dashboard.recentActivity"
+              :key="row.id"
+              class="grid grid-cols-[1.2fr_1fr_1fr_1fr_auto] items-center border-t border-white/[0.06] px-6 py-3.5"
+            >
+              <span class="text-[13.5px] font-semibold capitalize text-nuxt-text">
+                {{ row.type }}
+              </span>
+              <span class="font-mono text-[13.5px] text-nuxt-emerald">
+                +{{ formatCrypto(row.amount) }}
+              </span>
+              <span class="text-[13.5px] text-nuxt-muted2">{{ row.asset }}</span>
+              <span class="text-[12.5px] text-nuxt-muted2">
+                {{ formatShortDate(row.createdAt) }}
+              </span>
+              <span
+                class="justify-self-end rounded-full px-2.5 py-1 text-[11px] font-bold capitalize"
+                :class="pillClass(row.status)"
               >
-                <td class="px-4 py-4 text-slate-300">
-                  {{ formatDate(row.createdAt) }}
-                </td>
+                {{ row.status }}
+              </span>
+            </div>
+          </div>
 
-                <td class="px-4 py-4 font-semibold">
-                  {{ row.asset }}
-                </td>
-
-                <td class="px-4 py-4 text-right font-medium">
-                  {{ row.amount ?? "—" }}
-                </td>
-
-                <td class="px-4 py-4">
-                  <span
-                    class="inline-flex rounded-full px-3 py-1 text-sm font-medium"
-                    :class="statusBadgeClass(row.status)"
-                  >
-                    {{ formatStatus(row.status) }}
-                  </span>
-                </td>
-
-                <td class="px-4 py-4 text-slate-300">
-                  {{ shortText(row.txid) }}
-                </td>
-
-                <td class="px-4 py-4 text-right">
-                  <button
-                    v-if="row.txid"
-                    class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-white hover:bg-slate-900/60"
-                    @click="copyText(row.txid)"
-                  >
-                    Copy
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <!-- Stacked cards (below sm) -->
+          <div class="space-y-2 px-4 py-2 sm:hidden">
+            <div
+              v-for="row in dashboard.recentActivity"
+              :key="row.id"
+              class="rounded-xl border border-nuxt-border bg-nuxt-bg/40 p-4"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-[13.5px] font-semibold capitalize text-nuxt-text">
+                  {{ row.type }}
+                </span>
+                <span
+                  class="rounded-full px-2.5 py-1 text-[11px] font-bold capitalize"
+                  :class="pillClass(row.status)"
+                >
+                  {{ row.status }}
+                </span>
+              </div>
+              <div class="mt-2 flex items-center justify-between text-[13.5px]">
+                <span class="font-mono text-nuxt-emerald">
+                  +{{ formatCrypto(row.amount) }} {{ row.asset }}
+                </span>
+                <span class="text-[12.5px] text-nuxt-muted2">
+                  {{ formatShortDate(row.createdAt) }}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div
-          v-else
-          class="mt-6 rounded-2xl border border-dashed border-white/10 bg-slate-950/20 p-5 text-slate-400"
-        >
+        <div v-else class="px-6 py-6 text-nuxt-muted2">
           No deposits recorded yet.
         </div>
       </section>
 
-      <!-- Latest activity -->
-      <section class="rounded-3xl border border-white/10 bg-white/5 p-7">
-        <h3 class="text-2xl font-semibold text-white">Latest activity</h3>
-        <p class="mt-2 text-slate-400">
-          Recent address assignments and deposit updates.
+      <!-- Assigned addresses (compact) -->
+      <section class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
+        <h3 class="font-display text-lg font-bold text-nuxt-text">
+          Assigned addresses
+        </h3>
+        <p class="mt-1 text-sm text-nuxt-muted2">
+          Current reusable addresses assigned to your account.
         </p>
 
-        <div v-if="dashboard?.latestActivity?.length" class="mt-6 space-y-3">
+        <div v-if="dashboard?.addresses?.length" class="mt-4 space-y-2">
           <div
-            v-for="(item, index) in dashboard.latestActivity"
-            :key="index"
-            class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/30 p-4"
+            v-for="row in dashboard.addresses"
+            :key="row.assetKey + row.address"
+            class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-nuxt-border bg-nuxt-bg/40 p-3"
           >
-            <div class="flex items-center gap-3">
-              <span
-                class="inline-flex rounded-full px-3 py-1 text-sm font-medium"
-                :class="activityBadgeClass(item.type)"
-              >
-                {{ item.type.replaceAll("_", " ") }}
-              </span>
-
-              <div>
-                <p class="font-medium text-white">{{ item.label }}</p>
-                <p class="text-sm text-slate-400">{{ item.meta }}</p>
-              </div>
+            <div class="min-w-0">
+              <p class="text-xs text-nuxt-muted2">
+                {{ row.networkLabel }} · assigned {{ formatDate(row.createdAt) }}
+              </p>
+              <code class="block truncate text-sm text-nuxt-text">
+                {{ row.address }}
+              </code>
             </div>
 
-            <div class="text-sm text-slate-400">
-              {{ formatDate(item.timestamp) }}
-            </div>
+            <button
+              class="shrink-0 rounded-lg border border-nuxt-border bg-nuxt-panel px-3 py-1.5 text-xs font-semibold text-nuxt-text hover:opacity-90"
+              @click="copyText(row.address)"
+            >
+              Copy
+            </button>
           </div>
         </div>
 
         <div
           v-else
-          class="mt-6 rounded-2xl border border-dashed border-white/10 bg-slate-950/20 p-5 text-slate-400"
+          class="mt-4 rounded-xl border border-dashed border-nuxt-border p-4 text-sm text-nuxt-muted2"
         >
-          No activity yet.
+          No assigned addresses yet. Create one from the Deposit tab.
         </div>
       </section>
     </template>

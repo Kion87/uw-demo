@@ -2,6 +2,7 @@ import type { Deposit, DepositAddress } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { requireUser } from "../utils/auth";
 import { createError } from "h3";
+import { DEPOSIT_ASSET_BY_KEY, type DepositAssetKey } from "~/shared/deposits";
 
 function toDisplayNetwork(assetKey: string) {
   if (assetKey === "BTC") return "BTC (Bitcoin)";
@@ -16,16 +17,21 @@ function toDisplayNetwork(assetKey: string) {
   return assetKey;
 }
 
+const COMPLETED_STATUSES = [
+  "transaction_confirmed",
+  "transaction_complete",
+  "confirmed",
+  "complete",
+];
+
 function isCompletedStatus(status?: string | null) {
   if (!status) return false;
-  const s = status.toLowerCase();
-  return (
-    s === "transaction_confirmed" ||
-    s === "transaction_complete" ||
-    s === "confirmed" ||
-    s === "complete"
-  );
+  return COMPLETED_STATUSES.includes(status.toLowerCase());
 }
+
+const ASSET_LABELS: Record<string, string> = {
+  USD: "Cash (USD)",
+};
 
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event);
@@ -36,11 +42,13 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const [addresses, deposits, totalDeposits, completedDeposits]: [
-    DepositAddress[],
-    Deposit[],
-    number,
-    number,
+  const [
+    addresses,
+    recentDeposits,
+    totalDeposits,
+    completedDeposits,
+    creditedByAsset,
+    grossFiatTotal,
   ] = await Promise.all([
     prisma.depositAddress.findMany({
       where: { userId: user.id },
@@ -49,7 +57,7 @@ export default defineEventHandler(async (event) => {
     prisma.deposit.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: 6,
     }),
     prisma.deposit.count({
       where: { userId: user.id },
@@ -57,45 +65,55 @@ export default defineEventHandler(async (event) => {
     prisma.deposit.count({
       where: {
         userId: user.id,
-        status: {
-          in: [
-            "transaction_confirmed",
-            "transaction_complete",
-            "confirmed",
-            "complete",
-          ],
-          mode: "insensitive",
-        },
+        status: { in: COMPLETED_STATUSES, mode: "insensitive" },
       },
+    }),
+    prisma.deposit.groupBy({
+      by: ["asset"],
+      where: {
+        userId: user.id,
+        status: { in: COMPLETED_STATUSES, mode: "insensitive" },
+      },
+      _sum: { amount: true, fiatAmount: true },
+    }),
+    prisma.deposit.aggregate({
+      where: { userId: user.id },
+      _sum: { fiatAmount: true },
     }),
   ]);
 
-  // OPTION B:
-  // Real balances should come from credited ledger / wallet balances,
-  // not from deposit sums.
-  // For now keep this empty until crediting logic is added.
-  const balances: Array<{ asset: string; amount: string }> = [];
+  const creditedAssets = new Set(creditedByAsset.map((row) => row.asset));
 
-  const activity = [
-    ...addresses.map((a: DepositAddress) => ({
-      type: "address_assigned",
-      label: `${toDisplayNetwork(a.assetKey)} address assigned`,
-      timestamp: a.createdAt,
-      meta: a.address,
+  const balances = [
+    ...(creditedAssets.has("USD")
+      ? []
+      : [
+          {
+            asset: "USD",
+            label: ASSET_LABELS.USD,
+            amount: null as string | null,
+            usdValue: 0,
+            credited: false,
+          },
+        ]),
+    ...creditedByAsset.map((row) => ({
+      asset: row.asset,
+      label: ASSET_LABELS[row.asset] ?? row.asset,
+      amount: row._sum.amount?.toString() ?? null,
+      usdValue: Number(row._sum.fiatAmount ?? 0),
+      credited: Number(row._sum.fiatAmount ?? 0) > 0,
     })),
-    ...deposits.map((d: Deposit) => ({
-      type: isCompletedStatus(d.status)
-        ? "deposit_completed"
-        : "deposit_update",
-      label: isCompletedStatus(d.status)
-        ? `${d.asset} deposit completed`
-        : `${d.asset} deposit ${d.status || "updated"}`,
-      timestamp: d.updatedAt,
-      meta: d.amount ? `${d.amount} ${d.asset}` : d.asset,
-    })),
-  ]
-    .sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp))
-    .slice(0, 8);
+  ];
+
+  const totalBalanceUsd = balances.reduce((sum, b) => sum + b.usdValue, 0);
+
+  const assignedAssetKeys = new Set(
+    addresses.map(
+      (a: DepositAddress) =>
+        DEPOSIT_ASSET_BY_KEY[a.assetKey as DepositAssetKey]?.currency ??
+        a.assetKey,
+    ),
+  );
 
   return {
     ok: true,
@@ -103,13 +121,26 @@ export default defineEventHandler(async (event) => {
       publicId: user.publicId,
       email: user.email,
     },
-    summary: {
-      assignedAddresses: addresses.length,
-      totalDeposits,
-      completedDeposits,
-      activeBalances: balances.length,
-    },
+    totalBalanceUsd,
     balances,
+    stats: {
+      totalDepositsUsd: Number(grossFiatTotal._sum.fiatAmount ?? 0),
+      totalDepositsCount: totalDeposits,
+      totalWithdrawalsUsd: 0,
+      totalWithdrawalsCount: 0,
+      pendingDepositsCount: totalDeposits - completedDeposits,
+      assignedAddressesCount: addresses.length,
+      assignedAddressesNetworks: [...assignedAssetKeys].join(", ") || "—",
+    },
+    recentActivity: recentDeposits.map((d: Deposit) => ({
+      id: d.id,
+      type: "deposit" as const,
+      asset: d.asset,
+      amount: d.amount?.toString() ?? null,
+      status: isCompletedStatus(d.status) ? "completed" : "pending",
+      createdAt: d.createdAt,
+      txid: d.txid,
+    })),
     addresses: addresses.map((a: DepositAddress) => ({
       assetKey: a.assetKey,
       networkLabel: toDisplayNetwork(a.assetKey),
@@ -117,17 +148,5 @@ export default defineEventHandler(async (event) => {
       invoiceId: a.invoiceId,
       createdAt: a.createdAt,
     })),
-    recentDeposits: deposits.map((d: Deposit) => ({
-      id: d.id,
-      asset: d.asset,
-      network: d.network,
-      amount: d.amount,
-      status: d.status,
-      txid: d.txid,
-      address: d.address,
-      createdAt: d.createdAt,
-      updatedAt: d.updatedAt,
-    })),
-    latestActivity: activity,
   };
 });

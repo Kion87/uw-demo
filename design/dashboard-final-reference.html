@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — Final Design Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;padding:40px;background:#0b0c10;font-family:'Manrope',sans-serif;display:flex;justify-content:center;}
+</style>
+</head>
+<body>
+<div style="width:1440px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden;background:oklch(0.15 0.02 260);color:oklch(0.97 0.005 260);padding:48px 56px;">
+
+        <div style="margin-bottom:32px;">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:34px;font-weight:700;letter-spacing:-0.02em;">Dashboard</div>
+          <div style="font-size:15px;color:oklch(0.70 0.02 260);margin-top:6px;">Your balances, deposits, and activity at a glance.</div>
+        </div>
+
+        <div style="position:relative;overflow:hidden;border-radius:18px;padding:36px 40px;background:linear-gradient(135deg, oklch(0.23 0.03 260), oklch(0.13 0.02 260));border:1px solid oklch(0.78 0.13 85 / 30%);margin-bottom:28px;">
+          <div style="position:absolute;top:-90px;right:-70px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle, oklch(0.78 0.13 85 / 18%), transparent 70%);"></div>
+          <div style="position:relative;font-size:12.5px;color:oklch(0.78 0.13 85);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">Total Balance</div>
+          <div style="position:relative;font-family:'Space Grotesk',sans-serif;font-size:56px;font-weight:700;margin-top:10px;">$24,850.32</div>
+          <div style="position:relative;font-size:13px;color:oklch(0.62 0.02 260);margin-top:6px;">Credited balances only, not raw deposit totals.</div>
+          <div style="position:relative;display:flex;gap:12px;margin-top:26px;flex-wrap:wrap;">
+
+            <div style="display:flex;align-items:center;gap:10px;background:oklch(1 0 0/6%);border:1px solid oklch(1 0 0/10%);border-radius:12px;padding:10px 16px;">
+              <div style="width:28px;height:28px;border-radius:50%;background:oklch(0.78 0.13 85);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1a1206;">$</div>
+              <div><div style="font-size:11px;color:oklch(0.68 0.02 260);">Cash (USD)</div><div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;">$12,400.00</div></div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;background:oklch(1 0 0/6%);border:1px solid oklch(1 0 0/10%);border-radius:12px;padding:10px 16px;">
+              <div style="width:28px;height:28px;border-radius:50%;background:oklch(0.75 0.13 55);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#1a1206;">₿</div>
+              <div><div style="font-size:11px;color:oklch(0.68 0.02 260);">BTC · 0.1840</div><div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;">$15,920.00</div></div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;background:oklch(1 0 0/6%);border:1px solid oklch(1 0 0/10%);border-radius:12px;padding:10px 16px;">
+              <div style="width:28px;height:28px;border-radius:50%;background:oklch(0.75 0.13 265);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0c0d16;">Ξ</div>
+              <div><div style="font-size:11px;color:oklch(0.68 0.02 260);">ETH · 2.4100</div><div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;">$6,530.32</div></div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;background:oklch(1 0 0/3%);border:1px dashed oklch(1 0 0/12%);border-radius:12px;padding:10px 16px;opacity:0.6;">
+              <div style="width:28px;height:28px;border-radius:50%;background:oklch(0.75 0.13 155);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#08160f;">₮</div>
+              <div><div style="font-size:11px;color:oklch(0.68 0.02 260);">USDT</div><div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;">$0.00</div></div>
+            </div>
+
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:28px;">
+
+          <div style="background:oklch(0.19 0.025 260);border:1px solid oklch(1 0 0/8%);border-radius:16px;padding:22px 24px;">
+            <div style="font-size:12.5px;color:oklch(0.68 0.02 260);">Total deposits</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;margin-top:8px;">$32,180.00</div>
+            <div style="font-size:12px;color:oklch(0.75 0.13 155);margin-top:8px;font-weight:600;">↑ 13 transactions</div>
+          </div>
+
+          <div style="background:oklch(0.19 0.025 260);border:1px solid oklch(1 0 0/8%);border-radius:16px;padding:22px 24px;">
+            <div style="font-size:12.5px;color:oklch(0.68 0.02 260);">Total withdrawals</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;margin-top:8px;">$7,330.00</div>
+            <div style="font-size:12px;color:oklch(0.68 0.02 260);margin-top:8px;font-weight:600;">4 transactions</div>
+          </div>
+
+          <div style="background:oklch(0.19 0.025 260);border:1px solid oklch(0.78 0.13 85 / 30%);border-radius:16px;padding:22px 24px;">
+            <div style="font-size:12.5px;color:oklch(0.68 0.02 260);">Pending deposits</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;margin-top:8px;">2</div>
+            <div style="font-size:12px;color:oklch(0.78 0.13 85);margin-top:8px;font-weight:600;">Awaiting confirmation</div>
+          </div>
+
+          <div style="background:oklch(0.19 0.025 260);border:1px solid oklch(1 0 0/8%);border-radius:16px;padding:22px 24px;">
+            <div style="font-size:12.5px;color:oklch(0.68 0.02 260);">Assigned addresses</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;margin-top:8px;">2</div>
+            <div style="font-size:12px;color:oklch(0.68 0.02 260);margin-top:8px;font-weight:600;">BTC, ETH networks</div>
+          </div>
+
+        </div>
+
+        <div style="background:oklch(0.19 0.025 260);border:1px solid oklch(1 0 0/8%);border-radius:16px;padding:8px 0;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;padding:20px 26px 12px;">
+            <div>
+              <div style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;">Recent activity</div>
+              <div style="font-size:13px;color:oklch(0.62 0.02 260);margin-top:4px;">Latest deposits and withdrawals across all assets.</div>
+            </div>
+            <a href="#" style="font-size:13px;font-weight:600;color:oklch(0.78 0.13 85);text-decoration:none;">View all →</a>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;padding:10px 26px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.02 260);border-top:1px solid oklch(1 0 0/6%);">
+            <span>Type</span><span>Amount</span><span>Asset</span><span>Date</span><span style="justify-self:end;">Status</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;align-items:center;padding:13px 26px;border-top:1px solid oklch(1 0 0/6%);">
+            <span style="font-size:13.5px;font-weight:600;">Deposit</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:oklch(0.75 0.13 155);">+0.0500</span>
+            <span style="font-size:13.5px;color:oklch(0.68 0.02 260);">BTC</span>
+            <span style="font-size:12.5px;color:oklch(0.55 0.02 260);">3/12/26, 6:04 PM</span>
+            <span style="justify-self:end;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:oklch(0.75 0.13 155 / 16%);color:oklch(0.75 0.13 155);">Completed</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;align-items:center;padding:13px 26px;border-top:1px solid oklch(1 0 0/6%);">
+            <span style="font-size:13.5px;font-weight:600;">Withdrawal</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:oklch(0.72 0.02 260);">−500.00</span>
+            <span style="font-size:13.5px;color:oklch(0.68 0.02 260);">USD</span>
+            <span style="font-size:12.5px;color:oklch(0.55 0.02 260);">3/10/26, 2:41 PM</span>
+            <span style="justify-self:end;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:oklch(0.78 0.13 85 / 16%);color:oklch(0.78 0.13 85);">Pending</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;align-items:center;padding:13px 26px;border-top:1px solid oklch(1 0 0/6%);">
+            <span style="font-size:13.5px;font-weight:600;">Deposit</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:oklch(0.75 0.13 155);">+1.2000</span>
+            <span style="font-size:13.5px;color:oklch(0.68 0.02 260);">ETH</span>
+            <span style="font-size:12.5px;color:oklch(0.55 0.02 260);">3/5/26, 9:13 AM</span>
+            <span style="justify-self:end;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:oklch(0.75 0.13 155 / 16%);color:oklch(0.75 0.13 155);">Completed</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;align-items:center;padding:13px 26px;border-top:1px solid oklch(1 0 0/6%);">
+            <span style="font-size:13.5px;font-weight:600;">Deposit</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:oklch(0.75 0.13 155);">+2,000.00</span>
+            <span style="font-size:13.5px;color:oklch(0.68 0.02 260);">USD</span>
+            <span style="font-size:12.5px;color:oklch(0.55 0.02 260);">2/28/26, 11:02 AM</span>
+            <span style="justify-self:end;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:oklch(0.75 0.13 155 / 16%);color:oklch(0.75 0.13 155);">Completed</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+</body>
+</html>

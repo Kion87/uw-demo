@@ -60,6 +60,10 @@ model Deposit {
   // Optional: invoices can be created without amount for reusable addresses
   amount               Decimal?  @db.Decimal(36, 18)
 
+  // Fiat-equivalent value at time of deposit (from Uniwire's amount.paid.quotes.USD)
+  fiatAmount           Decimal?  @db.Decimal(20, 6)
+  fiatCurrency         String?
+
   // Invoice/address used (NOT unique because address can receive multiple tx)
   uniwireInvoiceId     String
   address              String

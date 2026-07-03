@@ -238,6 +238,9 @@ export default defineEventHandler(async (h3event) => {
     extractDecimalString(tx?.value) ??
     null;
 
+  const fiatAmount = extractDecimalString(tx?.amount?.paid?.quotes?.USD);
+  const fiatCurrency = fiatAmount !== null ? "USD" : null;
+
   const status = String(tx?.status ?? callbackStatus ?? "unknown");
   const address = String(receivingAddress);
 
@@ -258,6 +261,7 @@ export default defineEventHandler(async (h3event) => {
     passthrough: invoice?.passthrough,
     paid_amount: tx?.amount?.paid?.amount,
     paid_currency: tx?.amount?.paid?.currency,
+    paid_quote_usd: tx?.amount?.paid?.quotes?.USD,
     callback_status: payload?.callback_status,
     status,
     executedAt,
@@ -280,6 +284,8 @@ export default defineEventHandler(async (h3event) => {
         executedAt,
         confirmedAt,
         confirmations,
+        fiatAmount,
+        fiatCurrency,
       },
       create: {
         userId: user.id,
@@ -294,6 +300,8 @@ export default defineEventHandler(async (h3event) => {
         executedAt,
         confirmedAt,
         confirmations,
+        fiatAmount,
+        fiatCurrency,
       },
     });
   } catch (e: any) {

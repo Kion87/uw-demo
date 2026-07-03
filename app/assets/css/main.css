@@ -5,15 +5,33 @@
   --border: 226 232 240; /* slate-200 */
   --text: 15 23 42; /* slate-900 */
   --muted: 71 85 105; /* slate-600 */
+  --muted-2: 100 116 139; /* slate-500, tertiary text */
   --green: 0 220 130; /* Nuxt green */
+
+  --accent-gold: 153 103 0;
+  --accent-emerald: 0 122 58;
+  --accent-orange: 177 83 0;
+  --accent-violet: 56 93 184;
+
+  --hero-from: 241 245 249;
+  --hero-to: 226 232 240;
 }
 
 /* DARK */
 html.theme-dark {
-  --bg: 11 15 26; /* deep navy */
-  --panel: 15 23 42; /* slate-900-ish */
-  --border: 31 42 68; /* subtle border */
-  --text: 229 231 235; /* gray-200 */
-  --muted: 156 163 175; /* gray-400 */
+  --bg: 7 11 20; /* oklch(0.15 0.02 260) */
+  --panel: 13 20 31; /* oklch(0.19 0.025 260) */
+  --border: 32 39 49; /* opaque approximation of white/8% over panel */
+  --text: 243 245 249; /* oklch(0.97 0.005 260) */
+  --muted: 151 159 171; /* oklch(0.70 0.02 260) */
+  --muted-2: 121 129 141; /* oklch(0.60 0.02 260), tertiary text */
   --green: 0 220 130;
+
+  --accent-gold: 221 176 73; /* oklch(0.78 0.13 85) */
+  --accent-emerald: 98 198 137; /* oklch(0.75 0.13 155) */
+  --accent-orange: 237 150 88; /* oklch(0.75 0.13 55) */
+  --accent-violet: 133 172 255; /* oklch(0.75 0.13 265) */
+
+  --hero-from: 21 29 43; /* oklch(0.23 0.03 260) */
+  --hero-to: 4 7 15; /* oklch(0.13 0.02 260) */
 }
