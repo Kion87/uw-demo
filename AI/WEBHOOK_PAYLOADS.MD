@@ -36,6 +36,7 @@ From payload.transaction:
 - user link: transaction.invoice.passthrough (publicId)
 - amount: transaction.amount.paid.amount
 - asset: transaction.amount.paid.currency
+- fiat value: transaction.amount.paid.quotes.USD → Deposit.fiatAmount (nullable, not confirmed present on every callback — see WEBHOOK_PAYLOADS examples below, which do show it)
 - chain/network: prefer transaction.invoice.kind (e.g. "ETH")
 - token-kind: transaction.kind can be token-specific (e.g. "ETH_USDT")
 

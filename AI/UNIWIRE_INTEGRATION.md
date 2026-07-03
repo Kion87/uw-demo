@@ -73,6 +73,7 @@ Two-layer approach:
 
 - amount: `transaction.amount.paid.amount`
 - asset: `transaction.amount.paid.currency`
+- fiat value: `transaction.amount.paid.quotes.USD` → `Deposit.fiatAmount` / `fiatCurrency` (nullable)
 - chain/network: prefer `transaction.invoice.kind` (e.g. ETH)
 - token-ish kind: `transaction.kind` may be `ETH_USDT`
 - address: `transaction.invoice.address`

@@ -60,6 +60,8 @@ For `transaction_*` callbacks:
 8. store / update:
    - `amount = transaction.amount.paid.amount`
    - `asset = transaction.amount.paid.currency`
+   - `fiatAmount = transaction.amount.paid.quotes.USD` (nullable — not confirmed present on every callback)
+   - `fiatCurrency = "USD"` when `fiatAmount` was found, else `null`
    - `network = transaction.kind`
    - `txid = transaction.txid`
    - `status = transaction.status` (fallback to callback status if needed)

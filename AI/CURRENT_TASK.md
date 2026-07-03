@@ -27,22 +27,24 @@
   - no internal asset keys shown to user
   - simplified Recent Deposits columns
   - show/hide toggle for Recent Deposits
+- ✅ Dashboard redesigned (casino-style balances view, from `design/` Claude Design handoff):
+  - hero total-balance card with per-currency chips (Cash/BTC/ETH/USDT)
+  - stat grid: total deposits, total withdrawals (stubbed $0), pending deposits, assigned addresses
+  - recent activity feed, compact assigned-addresses panel kept below
+  - app-wide dark theme palette refresh + gold/emerald/orange/violet accent tokens
+- ✅ Callback now captures Uniwire's fiat quote (`amount.paid.quotes.USD`) into `Deposit.fiatAmount`/`fiatCurrency`, used for real (not fabricated) USD balances on the dashboard
 
 ## Next Task (When You Resume)
 
-Work on the **Dashboard**.
+Work on **Withdrawals** — currently `app/pages/withdraw.vue` is a static placeholder and the dashboard's "Total withdrawals" stat is hardcoded to `$0.00` / `0 transactions`.
 
-Suggested Dashboard goals:
+Suggested Withdrawal goals:
 
-1. Show user summary cards
-   - total deposits
-   - latest deposit
-   - recent activity
-2. Reuse deposit history data on dashboard
-3. Optionally show quick actions:
-   - Deposit
-   - Payout (future)
-4. Later: credit user balance safely
+1. Add a `Withdrawal` model (mirrors `Deposit`'s shape: status lifecycle, amount, fiat value, txid)
+2. `POST /api/withdraw` — request a withdrawal
+3. Withdrawal history on the Withdraw page (same pattern as Deposit's Recent Deposits)
+4. Wire real `totalWithdrawalsUsd`/`totalWithdrawalsCount` into `GET /api/dashboard` and the recent-activity feed once the model exists
+5. Later: credit user balance safely
    - credit only on confirmed/complete deposit states
    - never credit twice
    - use `Deposit.creditedAt` or introduce a ledger table

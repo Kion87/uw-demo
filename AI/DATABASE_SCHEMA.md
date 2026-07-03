@@ -50,6 +50,8 @@ Fields:
 - `asset`
 - `network`
 - `amount`
+- `fiatAmount` — USD-equivalent value at time of deposit (from Uniwire's `amount.paid.quotes.USD`)
+- `fiatCurrency` — currently always `"USD"` when `fiatAmount` is set, nullable otherwise
 - `uniwireInvoiceId` — **not unique**
 - `address`
 - `uniwireTransactionId` — unique idempotency key; nullable before transaction exists
@@ -67,6 +69,7 @@ Notes:
 - `status` should reflect transaction lifecycle such as pending / confirmed / complete
 - `creditedAt` is reserved for idempotent balance crediting later
 - `executedAt` / `confirmedAt` may be null on pending callbacks and filled later on confirmed callbacks
+- `fiatAmount` may be null if Uniwire's payload doesn't include a `quotes.USD` value (not confirmed to be present on every callback) — the dashboard treats this as a normal, permanent possibility (defaults to 0), not an error
 
 ## UniwireCallback (Delivery Log)
 

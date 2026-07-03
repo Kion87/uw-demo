@@ -11,6 +11,11 @@
 ## Deposits
 
 - POST `/api/deposit` — create or reuse deposit address for selected asset/network
+- GET `/api/deposits` — full deposit history for the current user
+
+## Dashboard
+
+- GET `/api/dashboard` — credited per-asset balances, deposit/withdrawal/pending stats, recent activity, assigned addresses. Withdrawal stats are hardcoded to 0 until a `Withdrawal` model exists.
 
 ## Uniwire Webhook
 
