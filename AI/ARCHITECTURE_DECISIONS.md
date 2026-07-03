@@ -106,3 +106,36 @@ Decision:
 Reason:
 
 - improves clarity and makes the demo feel more like a real exchange product
+
+## 10) Capture Uniwire's Fiat Quote Instead of Building Our Own Conversion
+
+Decision:
+
+- store `transaction.amount.paid.quotes.USD` directly on `Deposit` as `fiatAmount`/`fiatCurrency`, rather than maintaining our own price feed/exchange-rate table
+
+Reason:
+
+- Uniwire already computes and sends this value per-transaction; duplicating it would mean a second source of truth that could drift from what the user actually paid
+- keeps balance/total math (dashboard hero card, stat grid) tied to real data instead of a rebuilt-from-scratch pricing layer
+
+## 11) Dashboard Redesign is a Reskin, Not a New Backend
+
+Decision:
+
+- the casino-style dashboard (design/ handoff) reuses existing deposit/address data plus the new `fiatAmount` field; "Total withdrawals" is hardcoded to `$0.00` since no `Withdrawal` model/endpoint exists yet
+- the design's dark palette became the app-wide `html.theme-dark` token values (not scoped to just the dashboard) — header, modal, and other pages inherit the same refreshed dark theme
+
+Reason:
+
+- avoids fabricating numbers for a feature (withdrawals) that isn't built
+- a single global theme is simpler than a per-page theme override, and the design's palette was explicitly "final/high-fidelity"
+
+## 12) No Fiat "Cash (USD)" Balance — Project is Crypto-Only
+
+Decision:
+
+- the dashboard's balance chips only ever show real supported crypto assets (`BTC`/`ETH`/`USDT`/etc., driven directly by `Deposit.asset` groups). There is no "Cash (USD)" chip or any other fiat-deposit bucket.
+
+Reason:
+
+- there is no fiat deposit path in this app at all — `DEPOSIT_ASSET_BY_KEY` only defines crypto assets — and there never will be; the design's original "Cash (USD)" mockup chip doesn't apply here and was removed rather than left as a permanently-empty/dashed placeholder

@@ -29,10 +29,6 @@ function isCompletedStatus(status?: string | null) {
   return COMPLETED_STATUSES.includes(status.toLowerCase());
 }
 
-const ASSET_LABELS: Record<string, string> = {
-  USD: "Cash (USD)",
-};
-
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event);
   if (!user) {
@@ -82,28 +78,13 @@ export default defineEventHandler(async (event) => {
     }),
   ]);
 
-  const creditedAssets = new Set(creditedByAsset.map((row) => row.asset));
-
-  const balances = [
-    ...(creditedAssets.has("USD")
-      ? []
-      : [
-          {
-            asset: "USD",
-            label: ASSET_LABELS.USD,
-            amount: null as string | null,
-            usdValue: 0,
-            credited: false,
-          },
-        ]),
-    ...creditedByAsset.map((row) => ({
-      asset: row.asset,
-      label: ASSET_LABELS[row.asset] ?? row.asset,
-      amount: row._sum.amount?.toString() ?? null,
-      usdValue: Number(row._sum.fiatAmount ?? 0),
-      credited: Number(row._sum.fiatAmount ?? 0) > 0,
-    })),
-  ];
+  const balances = creditedByAsset.map((row) => ({
+    asset: row.asset,
+    label: row.asset,
+    amount: row._sum.amount?.toString() ?? null,
+    usdValue: Number(row._sum.fiatAmount ?? 0),
+    credited: Number(row._sum.fiatAmount ?? 0) > 0,
+  }));
 
   const totalBalanceUsd = balances.reduce((sum, b) => sum + b.usdValue, 0);
 

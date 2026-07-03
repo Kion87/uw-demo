@@ -52,7 +52,6 @@ function copyText(value?: string | null) {
 }
 
 const ASSET_BADGE: Record<string, { bg: string; glyph: string; fg: string }> = {
-  USD: { bg: "bg-nuxt-gold", glyph: "$", fg: "text-black" },
   BTC: { bg: "bg-nuxt-orange", glyph: "₿", fg: "text-black" },
   ETH: { bg: "bg-nuxt-violet", glyph: "Ξ", fg: "text-black" },
   USDT: { bg: "bg-nuxt-emerald", glyph: "₮", fg: "text-black" },
