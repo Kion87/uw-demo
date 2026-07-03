@@ -18,6 +18,7 @@ model User {
   depositAddresses DepositAddress[]
   sessions         Session[]
   deposits Deposit[]
+  withdrawals Withdrawal[]
 }
 
 model Session {
@@ -84,6 +85,48 @@ model Deposit {
 
   @@index([userId, createdAt])
   @@index([uniwireInvoiceId])
+}
+
+model Withdrawal {
+  id                   Int       @id @default(autoincrement())
+
+  userId               Int
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // What user selected (mapped to Uniwire)
+  asset                String    // currency sent to Uniwire, e.g. "BTC", "ETH", "USDT"
+  network              String    // "kind" sent to Uniwire, e.g. "BTC", "ETH_USDT"
+
+  amount               Decimal   @db.Decimal(36, 18)
+
+  // Fiat-equivalent value, if a payout response ever includes a USD quote
+  fiatAmount           Decimal?  @db.Decimal(20, 6)
+  fiatCurrency         String?
+
+  destinationAddress   String
+
+  // Our own idempotency key, generated before contacting Uniwire and sent as
+  // "reference_id" on every attempt/retry, so retries after an ambiguous
+  // failure can't create a duplicate payout on Uniwire's side.
+  referenceId          String    @unique
+
+  // payout.id from Uniwire's create-payout response; may be null if our
+  // request was ambiguous (timeout/network error) and we never learned it -
+  // in that case it gets backfilled once a callback arrives.
+  uniwirePayoutId      String?   @unique
+  txid                 String?
+
+  status               String    @default("reserved") // reserved | pending | initialized | confirmed | rejected | failed
+  errorMessage         String?
+
+  executedAt           DateTime?
+  confirmedAt          DateTime?
+  confirmations        Int?
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId, createdAt])
 }
 
 model UniwireCallback {

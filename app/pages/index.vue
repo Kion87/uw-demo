@@ -71,7 +71,18 @@ function pillClass(status?: string | null) {
   if (status === "completed") {
     return "bg-nuxt-emerald/15 text-nuxt-emerald";
   }
+  if (status === "failed") {
+    return "bg-rose-500/15 text-rose-400";
+  }
   return "bg-nuxt-gold/15 text-nuxt-gold";
+}
+
+function activityAmountClass(type?: string | null) {
+  return type === "withdrawal" ? "text-nuxt-muted2" : "text-nuxt-emerald";
+}
+
+function activityAmountSign(type?: string | null) {
+  return type === "withdrawal" ? "−" : "+";
 }
 
 onMounted(loadDashboard);
@@ -223,8 +234,8 @@ onMounted(loadDashboard);
               <span class="text-[13.5px] font-semibold capitalize text-nuxt-text">
                 {{ row.type }}
               </span>
-              <span class="font-mono text-[13.5px] text-nuxt-emerald">
-                +{{ formatCrypto(row.amount) }}
+              <span class="font-mono text-[13.5px]" :class="activityAmountClass(row.type)">
+                {{ activityAmountSign(row.type) }}{{ formatCrypto(row.amount) }}
               </span>
               <span class="text-[13.5px] text-nuxt-muted2">{{ row.asset }}</span>
               <span class="text-[12.5px] text-nuxt-muted2">
@@ -258,8 +269,8 @@ onMounted(loadDashboard);
                 </span>
               </div>
               <div class="mt-2 flex items-center justify-between text-[13.5px]">
-                <span class="font-mono text-nuxt-emerald">
-                  +{{ formatCrypto(row.amount) }} {{ row.asset }}
+                <span class="font-mono" :class="activityAmountClass(row.type)">
+                  {{ activityAmountSign(row.type) }}{{ formatCrypto(row.amount) }} {{ row.asset }}
                 </span>
                 <span class="text-[12.5px] text-nuxt-muted2">
                   {{ formatShortDate(row.createdAt) }}
@@ -270,7 +281,7 @@ onMounted(loadDashboard);
         </div>
 
         <div v-else class="px-6 py-6 text-nuxt-muted2">
-          No deposits recorded yet.
+          No activity yet.
         </div>
       </section>
 

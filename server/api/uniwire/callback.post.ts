@@ -111,9 +111,10 @@ export default defineEventHandler(async (h3event) => {
 
   const callbackStatus = String(payload?.callback_status ?? "");
   const isTransactionCallback = callbackStatus.startsWith("transaction_");
+  const isPayoutCallback = callbackStatus.startsWith("payout_");
 
   // Ignore invoice callbacks (return 200 so Uniwire won't retry)
-  if (!isTransactionCallback) {
+  if (!isTransactionCallback && !isPayoutCallback) {
     return {
       ok: true,
       ignored: "invoice_callback",
@@ -122,7 +123,83 @@ export default defineEventHandler(async (h3event) => {
     };
   }
 
-  // --- D) Transaction callback processing ---
+  // --- D) Payout callback processing ---
+  if (isPayoutCallback) {
+    const payout = resultObj;
+    const referenceId = payout?.reference_id ? String(payout.reference_id) : null;
+    const uniwirePayoutId = payout?.id ? String(payout.id) : null;
+
+    // reference_id is our own idempotency key, generated before we ever
+    // contact Uniwire, so it's the reliable lookup - uniwirePayoutId may
+    // still be unknown to us if the original request was ambiguous
+    // (timeout/network error) and never got a response back.
+    if (!referenceId && !uniwirePayoutId) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "Missing payout reference",
+      });
+    }
+
+    const PAYOUT_STATUS_MAP: Record<string, string> = {
+      payout_pending: "initialized",
+      payout_confirmed: "confirmed",
+      payout_complete: "confirmed",
+      payout_rejected: "rejected",
+      payout_failed: "failed",
+    };
+
+    const status = PAYOUT_STATUS_MAP[callbackStatus];
+
+    console.log("PAYOUT CALLBACK", {
+      referenceId,
+      uniwirePayoutId,
+      callback_status: callbackStatus,
+      mapped_status: status,
+      txid: payout?.txid,
+      confirmations: payout?.confirmations,
+      error: payout?.error,
+      duplicateCallback: isDuplicateCallback,
+    });
+
+    if (!status) {
+      return {
+        ok: true,
+        ignored: "unknown_payout_status",
+        version: VERSION,
+        duplicateCallback: isDuplicateCallback,
+      };
+    }
+
+    const confirmations =
+      typeof payout?.confirmations === "number"
+        ? payout.confirmations
+        : payout?.confirmations != null
+          ? Number(payout.confirmations)
+          : undefined;
+
+    await prisma.withdrawal.updateMany({
+      where: referenceId ? { referenceId } : { uniwirePayoutId: uniwirePayoutId! },
+      data: {
+        status,
+        // backfill uniwirePayoutId in case our own request was ambiguous
+        // (timeout/network error) and we never learned it ourselves
+        uniwirePayoutId: uniwirePayoutId ?? undefined,
+        txid: payout?.txid ? String(payout.txid) : undefined,
+        confirmations,
+        executedAt: payout?.executed_at ? new Date(payout.executed_at) : undefined,
+        confirmedAt: payout?.approved_at ? new Date(payout.approved_at) : undefined,
+        errorMessage: payout?.error ? String(payout.error) : undefined,
+      },
+    });
+
+    return {
+      ok: true,
+      version: VERSION,
+      duplicateCallback: isDuplicateCallback,
+    };
+  }
+
+  // --- E) Transaction callback processing ---
   const tx = resultObj;
 
   // Expect tx.invoice.* to exist

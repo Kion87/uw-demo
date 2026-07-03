@@ -1,8 +1,13 @@
-import type { Deposit, DepositAddress } from "@prisma/client";
+import type { Deposit, DepositAddress, Withdrawal } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { requireUser } from "../utils/auth";
 import { createError } from "h3";
 import { DEPOSIT_ASSET_BY_KEY, type DepositAssetKey } from "~/shared/deposits";
+import {
+  COMPLETED_STATUSES,
+  isCompletedStatus,
+  getAvailableBalances,
+} from "../utils/balances";
 
 function toDisplayNetwork(assetKey: string) {
   if (assetKey === "BTC") return "BTC (Bitcoin)";
@@ -17,16 +22,10 @@ function toDisplayNetwork(assetKey: string) {
   return assetKey;
 }
 
-const COMPLETED_STATUSES = [
-  "transaction_confirmed",
-  "transaction_complete",
-  "confirmed",
-  "complete",
-];
-
-function isCompletedStatus(status?: string | null) {
-  if (!status) return false;
-  return COMPLETED_STATUSES.includes(status.toLowerCase());
+function withdrawalActivityStatus(status: string) {
+  if (status === "confirmed") return "completed";
+  if (status === "rejected" || status === "failed") return "failed";
+  return "pending";
 }
 
 export default defineEventHandler(async (event) => {
@@ -41,16 +40,24 @@ export default defineEventHandler(async (event) => {
   const [
     addresses,
     recentDeposits,
+    recentWithdrawals,
     totalDeposits,
     completedDeposits,
-    creditedByAsset,
-    grossFiatTotal,
+    totalWithdrawals,
+    grossFiatDeposits,
+    grossFiatWithdrawals,
+    availableBalances,
   ] = await Promise.all([
     prisma.depositAddress.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" as any },
     }),
     prisma.deposit.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+    }),
+    prisma.withdrawal.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 6,
@@ -64,26 +71,26 @@ export default defineEventHandler(async (event) => {
         status: { in: COMPLETED_STATUSES, mode: "insensitive" },
       },
     }),
-    prisma.deposit.groupBy({
-      by: ["asset"],
-      where: {
-        userId: user.id,
-        status: { in: COMPLETED_STATUSES, mode: "insensitive" },
-      },
-      _sum: { amount: true, fiatAmount: true },
+    prisma.withdrawal.count({
+      where: { userId: user.id },
     }),
     prisma.deposit.aggregate({
       where: { userId: user.id },
       _sum: { fiatAmount: true },
     }),
+    prisma.withdrawal.aggregate({
+      where: { userId: user.id },
+      _sum: { fiatAmount: true },
+    }),
+    getAvailableBalances(user.id),
   ]);
 
-  const balances = creditedByAsset.map((row) => ({
-    asset: row.asset,
-    label: row.asset,
-    amount: row._sum.amount?.toString() ?? null,
-    usdValue: Number(row._sum.fiatAmount ?? 0),
-    credited: Number(row._sum.fiatAmount ?? 0) > 0,
+  const balances = [...availableBalances.entries()].map(([asset, bal]) => ({
+    asset,
+    label: asset,
+    amount: bal.amount.toString(),
+    usdValue: bal.fiatValue,
+    credited: bal.fiatValue > 0,
   }));
 
   const totalBalanceUsd = balances.reduce((sum, b) => sum + b.usdValue, 0);
@@ -96,6 +103,29 @@ export default defineEventHandler(async (event) => {
     ),
   );
 
+  const activity = [
+    ...recentDeposits.map((d: Deposit) => ({
+      id: `deposit-${d.id}`,
+      type: "deposit" as const,
+      asset: d.asset,
+      amount: d.amount?.toString() ?? null,
+      status: isCompletedStatus(d.status) ? "completed" : "pending",
+      createdAt: d.createdAt,
+      txid: d.txid,
+    })),
+    ...recentWithdrawals.map((w: Withdrawal) => ({
+      id: `withdrawal-${w.id}`,
+      type: "withdrawal" as const,
+      asset: w.asset,
+      amount: w.amount.toString(),
+      status: withdrawalActivityStatus(w.status),
+      createdAt: w.createdAt,
+      txid: w.txid,
+    })),
+  ]
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+    .slice(0, 6);
+
   return {
     ok: true,
     user: {
@@ -105,23 +135,15 @@ export default defineEventHandler(async (event) => {
     totalBalanceUsd,
     balances,
     stats: {
-      totalDepositsUsd: Number(grossFiatTotal._sum.fiatAmount ?? 0),
+      totalDepositsUsd: Number(grossFiatDeposits._sum.fiatAmount ?? 0),
       totalDepositsCount: totalDeposits,
-      totalWithdrawalsUsd: 0,
-      totalWithdrawalsCount: 0,
+      totalWithdrawalsUsd: Number(grossFiatWithdrawals._sum.fiatAmount ?? 0),
+      totalWithdrawalsCount: totalWithdrawals,
       pendingDepositsCount: totalDeposits - completedDeposits,
       assignedAddressesCount: addresses.length,
       assignedAddressesNetworks: [...assignedAssetKeys].join(", ") || "—",
     },
-    recentActivity: recentDeposits.map((d: Deposit) => ({
-      id: d.id,
-      type: "deposit" as const,
-      asset: d.asset,
-      amount: d.amount?.toString() ?? null,
-      status: isCompletedStatus(d.status) ? "completed" : "pending",
-      createdAt: d.createdAt,
-      txid: d.txid,
-    })),
+    recentActivity: activity,
     addresses: addresses.map((a: DepositAddress) => ({
       assetKey: a.assetKey,
       networkLabel: toDisplayNetwork(a.assetKey),
