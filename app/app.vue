@@ -10,6 +10,11 @@ function toggleTheme() {
   theme.value = theme.value === "dark" ? "light" : "dark";
 }
 
+watch(theme, (v) => {
+  document.documentElement.classList.toggle("theme-dark", v === "dark");
+  localStorage.setItem("uw-theme", v);
+});
+
 onMounted(() => {
   const savedTheme = localStorage.getItem("uw-theme") as ThemeMode | null;
   if (savedTheme === "dark" || savedTheme === "light") theme.value = savedTheme;
