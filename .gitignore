@@ -34,3 +34,6 @@ prisma/*.db-journal
 
 # Git worktrees
 .worktrees/
+
+# Superpowers scratch (brainstorm mockups, sdd artifacts)
+.superpowers/
