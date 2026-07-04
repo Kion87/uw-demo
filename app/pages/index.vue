@@ -129,7 +129,7 @@ onMounted(loadDashboard);
             :key="balance.asset"
             class="flex items-center gap-2.5 rounded-xl border px-4 py-2.5"
             :class="
-              balance.credited
+              balance.credited && (displayMode !== 'usd' || balance.usdValue !== null)
                 ? 'border-white/10 bg-white/[0.06]'
                 : 'border-dashed border-white/10 bg-white/[0.03] opacity-60'
             "

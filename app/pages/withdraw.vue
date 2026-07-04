@@ -98,6 +98,10 @@ watch(
   { immediate: true },
 );
 
+watch(displayMode, () => {
+  amount.value = "";
+});
+
 function assetIconForBase(asset: BaseAsset) {
   return ASSET_ICONS[asset];
 }
