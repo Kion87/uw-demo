@@ -180,7 +180,7 @@ onMounted(loadDashboard);
             {{ dashboard?.stats?.pendingDepositsCount ?? 0 }}
           </p>
           <p class="mt-2 text-xs font-semibold text-nuxt-gold">
-            Awaiting confirmation
+            {{ (dashboard?.stats?.pendingDepositsCount ?? 0) > 0 ? "Awaiting confirmation" : "No pending deposits" }}
           </p>
         </div>
 
