@@ -356,6 +356,7 @@ onMounted(async () => {
                 type="text"
                 inputmode="decimal"
                 :placeholder="displayMode === 'usd' ? '$0.00' : '0.00'"
+                :disabled="displayMode === 'usd' && !rateUsdForBase"
                 class="mt-2 w-full rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-sm text-nuxt-text outline-none focus:ring-2 focus:ring-nuxt-green/50"
               />
               <p v-if="displayMode === 'usd' && amount" class="mt-1.5 text-xs text-nuxt-muted">
