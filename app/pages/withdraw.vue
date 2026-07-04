@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { DEPOSIT_ASSETS, type DepositAssetKey } from "~/shared/deposits";
+import { formatUsd } from "~/shared/format";
 
 type BaseAsset = "BTC" | "ETH" | "USDT" | "USDC" | "TRX" | "SOL";
 
@@ -8,12 +9,15 @@ type WithdrawalHistoryItem = {
   asset: string;
   network: string;
   amount: string;
+  usdValue: number | null;
   destinationAddress: string;
   txid: string | null;
   status: string;
   errorMessage: string | null;
   createdAt: string;
 };
+
+const displayMode = useDisplayMode();
 
 const me = ref<any>(null);
 const dashboard = ref<any>(null);
@@ -57,9 +61,30 @@ const networkOptions = computed(() => {
   return DEPOSIT_ASSETS.filter((a) => allowed.has(a.key));
 });
 
+const balanceRowForBase = computed(() => {
+  return dashboard.value?.balances?.find((b: any) => b.asset === base.value) ?? null;
+});
+
 const availableForBase = computed(() => {
-  const row = dashboard.value?.balances?.find((b: any) => b.asset === base.value);
-  return row ? Number(row.amount ?? 0) : 0;
+  return balanceRowForBase.value ? Number(balanceRowForBase.value.amount ?? 0) : 0;
+});
+
+const availableUsdForBase = computed<number | null>(() => {
+  return balanceRowForBase.value?.usdValue ?? null;
+});
+
+const rateUsdForBase = computed<number | null>(() => {
+  return balanceRowForBase.value?.rateUsd ?? null;
+});
+
+const cryptoAmountFromUsdInput = computed(() => {
+  if (displayMode.value === "crypto") return amount.value;
+
+  const usd = Number(amount.value);
+  const rate = rateUsdForBase.value;
+  if (!amount.value || !Number.isFinite(usd) || !rate) return "";
+
+  return (usd / rate).toFixed(8);
 });
 
 watch(
@@ -172,6 +197,14 @@ async function loadWithdrawals() {
 async function submitWithdraw() {
   if (!me.value) return;
 
+  const amountToSend =
+    displayMode.value === "usd" ? cryptoAmountFromUsdInput.value : amount.value;
+
+  if (!amountToSend) {
+    error.value = "Unable to determine withdrawal amount.";
+    return;
+  }
+
   loading.value = true;
   error.value = null;
   result.value = null;
@@ -179,7 +212,7 @@ async function submitWithdraw() {
   try {
     result.value = await $fetch("/api/withdraw", {
       method: "POST",
-      body: { assetKey: selected.value, amount: amount.value, address: address.value },
+      body: { assetKey: selected.value, amount: amountToSend, address: address.value },
     });
 
     amount.value = "";
@@ -308,19 +341,31 @@ onMounted(async () => {
             </div>
 
             <div class="text-sm text-nuxt-muted">
-              Available: <span class="font-mono text-nuxt-text">{{ availableForBase }}</span>
-              {{ base }}
+              Available:
+              <span class="font-mono text-nuxt-text">
+                {{ displayMode === "usd" ? formatUsd(availableUsdForBase) : `${availableForBase} ${base}` }}
+              </span>
             </div>
 
             <div>
-              <label class="text-sm text-nuxt-muted">Amount</label>
+              <label class="text-sm text-nuxt-muted">
+                {{ displayMode === "usd" ? "Amount (USD)" : "Amount" }}
+              </label>
               <input
                 v-model="amount"
                 type="text"
                 inputmode="decimal"
-                placeholder="0.00"
+                :placeholder="displayMode === 'usd' ? '$0.00' : '0.00'"
                 class="mt-2 w-full rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-sm text-nuxt-text outline-none focus:ring-2 focus:ring-nuxt-green/50"
               />
+              <p v-if="displayMode === 'usd' && amount" class="mt-1.5 text-xs text-nuxt-muted">
+                <template v-if="rateUsdForBase">
+                  ≈ {{ cryptoAmountFromUsdInput || "0" }} {{ base }}
+                </template>
+                <template v-else>
+                  Live rate unavailable, try again
+                </template>
+              </p>
             </div>
 
             <div>
@@ -335,7 +380,7 @@ onMounted(async () => {
 
             <button
               class="w-full rounded-lg bg-nuxt-green px-4 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-60"
-              :disabled="loading || !me || !amount || !address"
+              :disabled="loading || !me || !amount || !address || (displayMode === 'usd' && !rateUsdForBase)"
               @click="submitWithdraw"
             >
               {{ loading ? "Submitting..." : "Request Withdrawal" }}
@@ -447,7 +492,7 @@ onMounted(async () => {
                     </td>
 
                     <td class="whitespace-nowrap px-3 py-3 text-right font-medium">
-                      {{ w.amount }}
+                      {{ displayMode === "usd" ? formatUsd(w.usdValue) : w.amount }}
                     </td>
 
                     <td class="px-3 py-3">
