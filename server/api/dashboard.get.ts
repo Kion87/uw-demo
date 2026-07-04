@@ -3,11 +3,8 @@ import { prisma } from "../utils/prisma";
 import { requireUser } from "../utils/auth";
 import { createError } from "h3";
 import { DEPOSIT_ASSET_BY_KEY, type DepositAssetKey } from "~/shared/deposits";
-import {
-  COMPLETED_STATUSES,
-  isCompletedStatus,
-  getAvailableBalances,
-} from "../utils/balances";
+import { COMPLETED_STATUSES, getAvailableBalances } from "../utils/balances";
+import { getRatesUsd } from "../utils/rates";
 
 function toDisplayNetwork(assetKey: string) {
   if (assetKey === "BTC") return "BTC (Bitcoin)";
@@ -28,6 +25,13 @@ function withdrawalActivityStatus(status: string) {
   return "pending";
 }
 
+function depositActivityStatus(status: string | null) {
+  const s = (status ?? "").toLowerCase();
+  if (s.includes("confirm")) return "confirmed";
+  if (s.includes("complete")) return "complete";
+  return "pending";
+}
+
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event);
   if (!user) {
@@ -45,8 +49,9 @@ export default defineEventHandler(async (event) => {
     completedDeposits,
     totalWithdrawals,
     grossFiatDeposits,
-    grossFiatWithdrawals,
+    withdrawalAssetTotals,
     availableBalances,
+    rates,
   ] = await Promise.all([
     prisma.depositAddress.findMany({
       where: { userId: user.id },
@@ -78,22 +83,43 @@ export default defineEventHandler(async (event) => {
       where: { userId: user.id },
       _sum: { fiatAmount: true },
     }),
-    prisma.withdrawal.aggregate({
+    prisma.withdrawal.groupBy({
+      by: ["asset"],
       where: { userId: user.id },
-      _sum: { fiatAmount: true },
+      _sum: { amount: true },
     }),
     getAvailableBalances(user.id),
+    getRatesUsd(),
   ]);
 
-  const balances = [...availableBalances.entries()].map(([asset, bal]) => ({
-    asset,
-    label: asset,
-    amount: bal.amount.toString(),
-    usdValue: bal.fiatValue,
-    credited: bal.fiatValue > 0,
-  }));
+  const balances = [...availableBalances.entries()].map(([asset, bal]) => {
+    if (bal.amount <= 0) {
+      return {
+        asset,
+        label: asset,
+        amount: bal.amount.toString(),
+        usdValue: 0,
+        rateUsd: null as number | null,
+        credited: false,
+      };
+    }
 
-  const totalBalanceUsd = balances.reduce((sum, b) => sum + b.usdValue, 0);
+    const rateUsd = rates.get(asset) ?? null;
+    const usdValue = rateUsd !== null ? bal.amount * rateUsd : null;
+
+    return {
+      asset,
+      label: asset,
+      amount: bal.amount.toString(),
+      usdValue,
+      rateUsd,
+      credited: true,
+    };
+  });
+
+  const totalBalanceUsd = balances.some((b) => b.usdValue === null)
+    ? null
+    : balances.reduce((sum, b) => sum + (b.usdValue ?? 0), 0);
 
   const assignedAssetKeys = new Set(
     addresses.map(
@@ -109,22 +135,44 @@ export default defineEventHandler(async (event) => {
       type: "deposit" as const,
       asset: d.asset,
       amount: d.amount?.toString() ?? null,
-      status: isCompletedStatus(d.status) ? "completed" : "pending",
+      usdValue:
+        d.fiatAmount !== null && d.fiatAmount !== undefined
+          ? Number(d.fiatAmount)
+          : null,
+      status: depositActivityStatus(d.status),
       createdAt: d.createdAt,
       txid: d.txid,
     })),
-    ...recentWithdrawals.map((w: Withdrawal) => ({
-      id: `withdrawal-${w.id}`,
-      type: "withdrawal" as const,
-      asset: w.asset,
-      amount: w.amount.toString(),
-      status: withdrawalActivityStatus(w.status),
-      createdAt: w.createdAt,
-      txid: w.txid,
-    })),
+    ...recentWithdrawals.map((w: Withdrawal) => {
+      const rateUsd = rates.get(w.asset) ?? null;
+      const usdValue = rateUsd !== null ? Number(w.amount) * rateUsd : null;
+      return {
+        id: `withdrawal-${w.id}`,
+        type: "withdrawal" as const,
+        asset: w.asset,
+        amount: w.amount.toString(),
+        usdValue,
+        status: withdrawalActivityStatus(w.status),
+        createdAt: w.createdAt,
+        txid: w.txid,
+      };
+    }),
   ]
     .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
     .slice(0, 6);
+
+  let totalWithdrawalsUsd: number | null = 0;
+  for (const row of withdrawalAssetTotals) {
+    const sumAmount = Number(row._sum.amount ?? 0);
+    if (sumAmount === 0) continue;
+
+    const rateUsd = rates.get(row.asset) ?? null;
+    if (rateUsd === null) {
+      totalWithdrawalsUsd = null;
+      break;
+    }
+    totalWithdrawalsUsd = (totalWithdrawalsUsd ?? 0) + sumAmount * rateUsd;
+  }
 
   return {
     ok: true,
@@ -137,7 +185,7 @@ export default defineEventHandler(async (event) => {
     stats: {
       totalDepositsUsd: Number(grossFiatDeposits._sum.fiatAmount ?? 0),
       totalDepositsCount: totalDeposits,
-      totalWithdrawalsUsd: Number(grossFiatWithdrawals._sum.fiatAmount ?? 0),
+      totalWithdrawalsUsd,
       totalWithdrawalsCount: totalWithdrawals,
       pendingDepositsCount: totalDeposits - completedDeposits,
       assignedAddressesCount: addresses.length,

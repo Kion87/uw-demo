@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { DEPOSIT_ASSETS, type DepositAssetKey } from "~/shared/deposits";
+import { formatUsd } from "~/shared/format";
+
+const displayMode = useDisplayMode();
 
 type BaseAsset = "BTC" | "ETH" | "USDT" | "USDC" | "TRX" | "SOL";
 
@@ -9,6 +12,7 @@ type DepositHistoryItem = {
   asset: string;
   network: string;
   amount: string | null;
+  fiatAmount: string | null;
   uniwireInvoiceId: string;
   address: string;
   uniwireTransactionId: string | null;
@@ -455,7 +459,7 @@ onMounted(async () => {
                     <td
                       class="whitespace-nowrap px-3 py-3 text-right font-medium"
                     >
-                      {{ d.amount ?? "—" }}
+                      {{ displayMode === "usd" ? formatUsd(d.fiatAmount !== null ? Number(d.fiatAmount) : null) : (d.amount ?? "—") }}
                     </td>
 
                     <td class="whitespace-nowrap px-3 py-3">

@@ -31,3 +31,6 @@ prisma/*.db-journal
 
 # Local Netlify folder
 .netlify
+
+# Git worktrees
+.worktrees/

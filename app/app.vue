@@ -4,6 +4,13 @@ import { ref, onMounted, watch } from "vue";
 type ThemeMode = "light" | "dark";
 const theme = ref<ThemeMode>("light");
 
+const displayMode = useDisplayMode();
+
+function onDisplayModeToggle(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  displayMode.value = checked ? "crypto" : "usd";
+}
+
 const user = useState<any | null>("user", () => null);
 
 function toggleTheme() {
@@ -15,6 +22,10 @@ watch(theme, (v) => {
   localStorage.setItem("uw-theme", v);
 });
 
+watch(displayMode, (v) => {
+  localStorage.setItem("uw-display-mode", v);
+});
+
 onMounted(() => {
   const savedTheme = localStorage.getItem("uw-theme") as ThemeMode | null;
   if (savedTheme === "dark" || savedTheme === "light") theme.value = savedTheme;
@@ -23,6 +34,11 @@ onMounted(() => {
     "theme-dark",
     theme.value === "dark",
   );
+
+  const savedDisplayMode = localStorage.getItem("uw-display-mode");
+  if (savedDisplayMode === "usd" || savedDisplayMode === "crypto") {
+    displayMode.value = savedDisplayMode;
+  }
 
   // sync user from server
   $fetch("/api/me")
@@ -113,6 +129,17 @@ async function logout() {
 
         <!-- Right controls -->
         <div class="flex items-center gap-2">
+          <label
+            class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-nuxt-border bg-nuxt-panel px-3 text-sm hover:opacity-90"
+          >
+            <input
+              type="checkbox"
+              :checked="displayMode === 'crypto'"
+              @change="onDisplayModeToggle"
+            />
+            Show crypto values
+          </label>
+
           <button
             class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-nuxt-border bg-nuxt-panel hover:opacity-90"
             @click="toggleTheme"

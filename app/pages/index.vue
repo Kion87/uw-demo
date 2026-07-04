@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { formatUsd, formatCrypto } from "~/shared/format";
+
+const displayMode = useDisplayMode();
+
 const loading = ref(true);
 const error = ref<string | null>(null);
 const dashboard = ref<any>(null);
@@ -32,20 +36,6 @@ function formatShortDate(value?: string | null) {
   });
 }
 
-function formatUsd(value?: number | null) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value ?? 0);
-}
-
-function formatCrypto(value?: string | null) {
-  if (!value) return "0";
-  const n = Number(value);
-  if (!Number.isFinite(n)) return value;
-  return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
-
 function copyText(value?: string | null) {
   if (!value) return;
   navigator.clipboard.writeText(value);
@@ -68,7 +58,7 @@ function assetBadge(asset: string) {
 }
 
 function pillClass(status?: string | null) {
-  if (status === "completed") {
+  if (status === "completed" || status === "confirmed" || status === "complete") {
     return "bg-nuxt-emerald/15 text-nuxt-emerald";
   }
   if (status === "failed") {
@@ -119,13 +109,18 @@ onMounted(loadDashboard);
         class="relative overflow-hidden rounded-[18px] border border-nuxt-gold/30 bg-gradient-to-br from-nuxt-heroFrom to-nuxt-heroTo p-6 sm:p-9 sm:px-10"
       >
         <div class="relative text-[12.5px] font-bold uppercase tracking-[0.1em] text-nuxt-gold">
-          Total Balance
+          {{ displayMode === "usd" ? "Total Balance" : "Your Balances" }}
         </div>
-        <div class="relative mt-2.5 font-display text-[34px] font-bold leading-none text-nuxt-text sm:text-[56px]">
-          {{ formatUsd(dashboard?.totalBalanceUsd) }}
-        </div>
-        <div class="relative mt-1.5 text-[13px] text-nuxt-muted2">
-          Credited balances only, not raw deposit totals.
+        <template v-if="displayMode === 'usd'">
+          <div class="relative mt-2.5 font-display text-[34px] font-bold leading-none text-nuxt-text sm:text-[56px]">
+            {{ formatUsd(dashboard?.totalBalanceUsd) }}
+          </div>
+          <div class="relative mt-1.5 text-[13px] text-nuxt-muted2">
+            Credited balances only, not raw deposit totals.
+          </div>
+        </template>
+        <div v-else class="relative mt-1.5 text-[13px] text-nuxt-muted2">
+          Your balance in each asset you hold.
         </div>
 
         <div class="relative mt-6 flex flex-wrap gap-3">
@@ -134,7 +129,7 @@ onMounted(loadDashboard);
             :key="balance.asset"
             class="flex items-center gap-2.5 rounded-xl border px-4 py-2.5"
             :class="
-              balance.credited
+              balance.credited && (displayMode !== 'usd' || balance.usdValue !== null)
                 ? 'border-white/10 bg-white/[0.06]'
                 : 'border-dashed border-white/10 bg-white/[0.03] opacity-60'
             "
@@ -147,10 +142,10 @@ onMounted(loadDashboard);
             </div>
             <div>
               <div class="text-[11px] text-nuxt-muted2">
-                {{ balance.label }}{{ balance.amount ? ` · ${formatCrypto(balance.amount)}` : "" }}
+                {{ balance.label }}
               </div>
               <div class="font-mono text-[15px] font-semibold text-nuxt-text">
-                {{ formatUsd(balance.usdValue) }}
+                {{ displayMode === "usd" ? formatUsd(balance.usdValue) : `${formatCrypto(balance.amount)} ${balance.asset}` }}
               </div>
             </div>
           </div>
@@ -162,20 +157,20 @@ onMounted(loadDashboard);
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-5 px-6">
           <p class="text-[12.5px] text-nuxt-muted2">Total deposits</p>
           <p class="mt-2 font-display text-[28px] font-bold text-nuxt-text">
-            {{ formatUsd(dashboard?.stats?.totalDepositsUsd) }}
+            {{ displayMode === "usd" ? formatUsd(dashboard?.stats?.totalDepositsUsd) : (dashboard?.stats?.totalDepositsCount ?? 0) }}
           </p>
           <p class="mt-2 text-xs font-semibold text-nuxt-emerald">
-            ↑ {{ dashboard?.stats?.totalDepositsCount ?? 0 }} transactions
+            {{ displayMode === "usd" ? `↑ ${dashboard?.stats?.totalDepositsCount ?? 0} transactions` : "deposits" }}
           </p>
         </div>
 
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-5 px-6">
           <p class="text-[12.5px] text-nuxt-muted2">Total withdrawals</p>
           <p class="mt-2 font-display text-[28px] font-bold text-nuxt-text">
-            {{ formatUsd(dashboard?.stats?.totalWithdrawalsUsd) }}
+            {{ displayMode === "usd" ? formatUsd(dashboard?.stats?.totalWithdrawalsUsd) : (dashboard?.stats?.totalWithdrawalsCount ?? 0) }}
           </p>
           <p class="mt-2 text-xs font-semibold text-nuxt-muted2">
-            {{ dashboard?.stats?.totalWithdrawalsCount ?? 0 }} transactions
+            {{ displayMode === "usd" ? `${dashboard?.stats?.totalWithdrawalsCount ?? 0} transactions` : "withdrawals" }}
           </p>
         </div>
 
@@ -235,7 +230,7 @@ onMounted(loadDashboard);
                 {{ row.type }}
               </span>
               <span class="font-mono text-[13.5px]" :class="activityAmountClass(row.type)">
-                {{ activityAmountSign(row.type) }}{{ formatCrypto(row.amount) }}
+                {{ activityAmountSign(row.type) }}{{ displayMode === "usd" ? formatUsd(row.usdValue) : formatCrypto(row.amount) }}
               </span>
               <span class="text-[13.5px] text-nuxt-muted2">{{ row.asset }}</span>
               <span class="text-[12.5px] text-nuxt-muted2">
@@ -270,7 +265,7 @@ onMounted(loadDashboard);
               </div>
               <div class="mt-2 flex items-center justify-between text-[13.5px]">
                 <span class="font-mono" :class="activityAmountClass(row.type)">
-                  {{ activityAmountSign(row.type) }}{{ formatCrypto(row.amount) }} {{ row.asset }}
+                  {{ activityAmountSign(row.type) }}{{ displayMode === "usd" ? formatUsd(row.usdValue) : formatCrypto(row.amount) }} {{ row.asset }}
                 </span>
                 <span class="text-[12.5px] text-nuxt-muted2">
                   {{ formatShortDate(row.createdAt) }}
