@@ -3,11 +3,7 @@ import { prisma } from "../utils/prisma";
 import { requireUser } from "../utils/auth";
 import { createError } from "h3";
 import { DEPOSIT_ASSET_BY_KEY, type DepositAssetKey } from "~/shared/deposits";
-import {
-  COMPLETED_STATUSES,
-  isCompletedStatus,
-  getAvailableBalances,
-} from "../utils/balances";
+import { COMPLETED_STATUSES, getAvailableBalances } from "../utils/balances";
 import { getRatesUsd } from "../utils/rates";
 
 function toDisplayNetwork(assetKey: string) {
