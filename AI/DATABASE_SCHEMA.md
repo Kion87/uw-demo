@@ -69,7 +69,40 @@ Notes:
 - `status` should reflect transaction lifecycle such as pending / confirmed / complete
 - `creditedAt` is reserved for idempotent balance crediting later
 - `executedAt` / `confirmedAt` may be null on pending callbacks and filled later on confirmed callbacks
-- `fiatAmount` may be null if Uniwire's payload doesn't include a `quotes.USD` value (not confirmed to be present on every callback) — the dashboard treats this as a normal, permanent possibility (defaults to 0), not an error
+- `fiatAmount` may be null if Uniwire's payload doesn't include a `quotes.USD` value (not confirmed to be present on every callback) — the dashboard treats this as a normal, permanent possibility, rendering `—` (never a fabricated `$0.00`), not an error
+
+## Withdrawal (One Row Per Payout Request)
+
+Key points:
+
+- created up front (`status: "reserved"`) inside the same serializable transaction that reserves the user's balance, before Uniwire is ever contacted
+- `referenceId` is generated before the Uniwire call and sent as `reference_id` on every attempt/retry, so a retry after an ambiguous (timeout/network) failure can't create a duplicate payout on Uniwire's side
+- `uniwirePayoutId` may be null until a callback arrives, if the original create-payout request was itself ambiguous
+
+Fields:
+
+- `id`
+- `userId`
+- `asset` — currency sent to Uniwire, e.g. `"BTC"`, `"ETH"`, `"USDT"`
+- `network` — `"kind"` sent to Uniwire, e.g. `"BTC"`, `"ETH_USDT"`
+- `amount`
+- `fiatAmount` — reserved for a USD quote from the payout response; **currently always null**, nothing populates it (the dashboard values withdrawals live via `getRatesUsd()` instead — see Architecture Decision #13)
+- `fiatCurrency`
+- `destinationAddress`
+- `referenceId` — **unique**, our own idempotency key
+- `uniwirePayoutId` — unique, nullable until backfilled by a callback
+- `txid`
+- `status` — `reserved | pending | initialized | confirmed | rejected | failed`
+- `errorMessage`
+- `executedAt`
+- `confirmedAt`
+- `confirmations`
+- `createdAt`
+- `updatedAt`
+
+Notes:
+
+- `getAvailableBalances()` treats only non-`rejected`/non-`failed` withdrawals as reducing available balance — a `reserved` or `pending` withdrawal still counts against the balance even before a callback confirms it, since the reservation already happened at request time
 
 ## UniwireCallback (Delivery Log)
 
