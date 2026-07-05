@@ -36,7 +36,8 @@ Webhook endpoint:
 
 ### Callback Types
 
-- Process **transaction callbacks only**: `callback_status` starts with `transaction_`
+- Process **transaction callbacks** (`callback_status` starts with `transaction_`) → deposits
+- Process **payout callbacks** (`callback_status` starts with `payout_`) → withdrawals (see Section 4)
 - Invoice callbacks must be **ignored** but still return **2xx** (so Uniwire doesn’t retry forever)
 
 ### Payload Shape (Transaction Callbacks)
@@ -56,6 +57,8 @@ Signature check:
 
 - `signature = hex(HMAC_SHA256(callback_id, key=UNIWIRE_CALLBACK_TOKEN))`
 
+Same scheme for both transaction and payout callbacks.
+
 ### Idempotency (Two Layers)
 
 1. Callback delivery log:
@@ -68,12 +71,21 @@ Signature check:
 - Deposits must be keyed by `uniwireTransactionId` (unique per transaction)
 - Upsert deposit using `transaction.id`
 
-### Credit Rules (When Implemented)
+### Credit Rules
 
 - Only credit on `transaction_confirmed` / `transaction_complete`
-- Must never credit twice (even with resends)
+- Must never credit twice (even with resends) — implemented by recomputing available balance live from status-filtered aggregates (`getAvailableBalances()` in `server/utils/balances.ts`) rather than incrementing a stored counter. Do not reintroduce a stored/incrementable balance field without preserving this "never double-apply" property.
 
-## 4) Auth Rules
+## 4) Withdrawals (Do Not Break)
+
+`POST /api/withdraw` and its payout callback counterpart have invariants that must not be relaxed:
+
+- **Reserve before contacting Uniwire.** Balance is checked and the `Withdrawal` row (`status: "reserved"`) is created inside one serializable transaction, before any HTTP call to Uniwire. This prevents two concurrent requests from both reading the same available balance and both reserving against it.
+- **`referenceId` is our idempotency key, not Uniwire's.** It's generated before the first Uniwire call and resent unchanged on every retry, so a retry after an ambiguous failure can't create a duplicate payout on Uniwire's side. Payout callbacks match on `referenceId` first, falling back to `uniwirePayoutId` only if the callback lacks a `reference_id`.
+- **Never release a reservation on an ambiguous response.** A network/timeout error or a payout response with no `id` means the payout might have gone through — treat it as ambiguous, retry once with the same `referenceId`, and if still ambiguous leave the withdrawal in `reserved` status for a later callback to resolve. Only a structured rejection (a response with a `reason` field) releases the reservation immediately (`status: "rejected"`).
+- **`Withdrawal.fiatAmount` is currently dead** (always null) — do not build features that assume it's populated. Withdrawal USD figures come from `getRatesUsd()` (live rate) instead; see Architecture Decision #13.
+
+## 5) Auth Rules
 
 Cookie-session auth only.
 Endpoints:
@@ -84,14 +96,14 @@ Endpoints:
 
 Do not introduce JWT/OAuth without explicit request.
 
-## 5) Stack & Deployment Rules
+## 6) Stack & Deployment Rules
 
 - Nuxt 4 + Nitro server routes
 - Postgres + Prisma
 - Netlify deployment
   Avoid architecture incompatible with Netlify functions.
 
-## 6) Coding Style
+## 7) Coding Style
 
 - step-by-step, beginner-friendly
 - minimal refactors unless requested

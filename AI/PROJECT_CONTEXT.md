@@ -1,20 +1,18 @@
-# PROJECT_CONTEXT.md
-
 # UW Demo — Project Context
 
 ## References
 
-- Uniwire Quickstart: https://docs.uniwire.com/api/quickstart :contentReference[oaicite:1]{index=1}
+- Uniwire Quickstart: <https://docs.uniwire.com/api/quickstart> :contentReference[oaicite:1]{index=1}
 
 ## Goal
 
-UW Demo is a crypto deposit demo system integrated with Uniwire. It simulates a casino/broker-style deposit flow:
+UW Demo is a crypto deposit/withdrawal demo system integrated with Uniwire. It simulates a casino/broker-style balance flow:
 
 - users sign up / log in
-- users generate deposit addresses (reusable per chain)
-- users deposit crypto to those addresses
-- Uniwire sends transaction callbacks
-- the app records deposits in the database (and later credits balance)
+- users generate deposit addresses (reusable per chain), deposit crypto, and Uniwire sends transaction callbacks that credit their balance
+- users request withdrawals; the app reserves the balance atomically, calls Uniwire's payout API, and Uniwire sends payout callbacks that resolve the final status
+- available balance is always recomputed live (completed deposits minus non-rejected/non-failed withdrawals) rather than tracked as a stored, incrementable counter
+- the Dashboard, Deposit, and Withdraw pages can display every monetary figure in either USD (valued live for current holdings/withdrawals, historically for past deposits) or the underlying crypto amount, via a nav settings toggle
 
 ## Tech Stack
 
@@ -40,6 +38,7 @@ Frontend loads logged-in state via `GET /api/me`.
 - Session: `token`, `userId`, `expiresAt`
 - DepositAddress: reusable blockchain address per user+chain key
 - Deposit: one row per actual blockchain transaction (keyed by `uniwireTransactionId`)
+- Withdrawal: one row per payout request (keyed by our own `referenceId`, generated before contacting Uniwire)
 - UniwireCallback: callback delivery log (keyed by `callbackId`)
 
 ## Core Design Rule — Reuse Addresses Per Blockchain (Not Per Token)

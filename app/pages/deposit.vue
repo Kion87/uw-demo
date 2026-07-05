@@ -230,7 +230,7 @@ onMounted(async () => {
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
           <div class="flex items-center justify-between">
             <div>
-              <h1 class="text-xl font-semibold">Deposit</h1>
+              <h1 class="font-display text-xl font-bold">Deposit</h1>
               <p class="mt-1 text-sm text-nuxt-muted">
                 Create a Uniwire invoice and get a deposit address.
               </p>
@@ -261,7 +261,7 @@ onMounted(async () => {
 
         <!-- Create deposit -->
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
-          <h2 class="text-lg font-semibold">Create Deposit</h2>
+          <h2 class="font-display text-lg font-bold">Create Deposit</h2>
           <p class="mt-1 text-sm text-nuxt-muted">
             Select asset and network, then click Create Deposit.
           </p>
@@ -378,7 +378,7 @@ onMounted(async () => {
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <h2 class="text-lg font-semibold">Recent Deposits</h2>
+              <h2 class="font-display text-lg font-bold">Recent Deposits</h2>
               <p class="mt-1 text-sm text-nuxt-muted">
                 Your latest deposits received on assigned addresses.
               </p>
@@ -541,28 +541,43 @@ onMounted(async () => {
       </div>
 
       <!-- RIGHT -->
-      <aside class="lg:col-span-1">
-        <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
-          <h3 class="text-lg font-semibold">How it works</h3>
+      <HowItWorksPanel>
+        <template #steps>
+          <li>1) Pick an asset and network.</li>
+          <li>
+            2) Click <span class="text-nuxt-text">Create Deposit</span> — the
+            server returns your existing address for this asset, or creates a
+            new one at Uniwire.
+          </li>
+          <li>
+            3) Send crypto on-chain to that address. It stays reusable, so the
+            same address can receive multiple deposits over time.
+          </li>
+          <li>
+            4) Uniwire sends transaction callbacks as the deposit moves from
+            pending to confirmed.
+          </li>
+          <li>
+            5) Each callback is signature-verified and matched by Uniwire's
+            transaction id — not the invoice — so it's safe against webhook
+            retries.
+          </li>
+        </template>
 
-          <ul class="mt-4 space-y-2 text-sm text-nuxt-muted">
-            <li>1) Pick an asset.</li>
-            <li>2) Pick a network.</li>
-            <li>
-              3) Click <span class="text-nuxt-text">Create Deposit</span>.
-            </li>
-            <li>
-              4) Server reuses an address from DB or creates one at Uniwire.
-            </li>
-            <li>5) Transaction callbacks update the deposit chronology.</li>
-          </ul>
+        <template #under-the-hood>
+          <li>
+            Two-layer idempotency: the callback delivery is logged first
+            (dedupes retries), then the deposit row is upserted by
+            transaction id.
+          </li>
+          <li>
+            The USD value shown is Uniwire's own quote for that specific
+            transaction, captured at callback time — not a live rate — so it
+            always matches what was actually quoted.
+          </li>
+        </template>
 
-          <div
-            class="mt-5 border-t border-nuxt-border pt-4 text-xs text-nuxt-muted"
-          >
-            Tip: leaving amount empty enables reusable-address flows.
-          </div>
-
+        <template #extra>
           <div
             class="mt-4 rounded-xl border border-nuxt-border bg-nuxt-bg p-3 text-xs text-nuxt-muted"
           >
@@ -573,8 +588,8 @@ onMounted(async () => {
               <div>UNIWIRE_PROFILE_ID</div>
             </div>
           </div>
-        </div>
-      </aside>
+        </template>
+      </HowItWorksPanel>
     </div>
   </div>
 </template>
