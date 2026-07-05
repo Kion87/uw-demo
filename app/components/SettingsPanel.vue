@@ -43,24 +43,32 @@ onUnmounted(() => {
         Settings
       </div>
 
-      <div class="flex items-center justify-between py-2">
-        <div>
-          <div class="text-sm text-nuxt-text">Show crypto values</div>
-          <div class="mt-0.5 text-[11px] text-nuxt-muted">
-            Display amounts in crypto instead of USD
+      <SettingsSection label="General">
+        <div class="flex items-center justify-between py-2">
+          <div>
+            <div class="text-sm text-nuxt-text">Show crypto values</div>
+            <div class="mt-0.5 text-[11px] text-nuxt-muted">
+              Display amounts in crypto instead of USD
+            </div>
           </div>
+          <ToggleSwitch
+            :model-value="displayMode === 'crypto'"
+            @update:model-value="onDisplayModeToggle"
+          />
         </div>
-        <ToggleSwitch
-          :model-value="displayMode === 'crypto'"
-          @update:model-value="onDisplayModeToggle"
-        />
-      </div>
+      </SettingsSection>
 
       <div class="my-1.5 border-t border-nuxt-border" />
 
-      <div class="flex items-center justify-between py-2 opacity-45">
-        <div class="text-sm text-nuxt-text">More settings soon</div>
-      </div>
+      <SettingsSection label="Deposits">
+        <div class="py-2 text-sm text-nuxt-text opacity-45">Coming soon</div>
+      </SettingsSection>
+
+      <div class="my-1.5 border-t border-nuxt-border" />
+
+      <SettingsSection label="Payouts">
+        <div class="py-2 text-sm text-nuxt-text opacity-45">Coming soon</div>
+      </SettingsSection>
     </div>
   </div>
 </template>
