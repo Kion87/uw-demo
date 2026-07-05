@@ -251,7 +251,7 @@ onMounted(async () => {
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
           <div class="flex items-center justify-between">
             <div>
-              <h1 class="text-xl font-semibold">Withdraw</h1>
+              <h1 class="font-display text-xl font-bold">Withdraw</h1>
               <p class="mt-1 text-sm text-nuxt-muted">
                 Request a payout and track status updates.
               </p>
@@ -282,7 +282,7 @@ onMounted(async () => {
 
         <!-- Create withdrawal -->
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
-          <h2 class="text-lg font-semibold">Request Withdrawal</h2>
+          <h2 class="font-display text-lg font-bold">Request Withdrawal</h2>
           <p class="mt-1 text-sm text-nuxt-muted">
             Select asset and network, enter amount and destination.
           </p>
@@ -417,7 +417,7 @@ onMounted(async () => {
         <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <h2 class="text-lg font-semibold">Recent Withdrawals</h2>
+              <h2 class="font-display text-lg font-bold">Recent Withdrawals</h2>
               <p class="mt-1 text-sm text-nuxt-muted">
                 Your latest payout requests and their status.
               </p>
@@ -555,26 +555,49 @@ onMounted(async () => {
       </div>
 
       <!-- RIGHT -->
-      <aside class="lg:col-span-1">
-        <div class="rounded-2xl border border-nuxt-border bg-nuxt-panel p-6">
-          <h3 class="text-lg font-semibold">How it works</h3>
+      <HowItWorksPanel>
+        <template #steps>
+          <li>
+            1) Pick an asset, network, and amount (checked against your
+            available balance).
+          </li>
+          <li>
+            2) Click <span class="text-nuxt-text">Request Withdrawal</span> —
+            the server reserves the balance atomically and generates its own
+            reference id before contacting Uniwire.
+          </li>
+          <li>
+            3) A timeout or network error from Uniwire is treated as
+            ambiguous, not failed — the reservation is kept and one retry is
+            attempted with the same reference id.
+          </li>
+          <li>
+            4) Uniwire sends payout callbacks, matched back to this
+            withdrawal by that reference id.
+          </li>
+          <li>
+            5) Status moves from pending to confirmed, or to
+            rejected/failed if Uniwire declines the payout outright.
+          </li>
+        </template>
 
-          <ul class="mt-4 space-y-2 text-sm text-nuxt-muted">
-            <li>1) Pick an asset and network.</li>
-            <li>2) Enter an amount (checked against your available balance).</li>
-            <li>
-              3) Click <span class="text-nuxt-text">Request Withdrawal</span>.
-            </li>
-            <li>4) Server sends a payout request to Uniwire.</li>
-            <li>5) Payout callbacks update the status as it moves.</li>
-          </ul>
-
-          <div class="mt-5 border-t border-nuxt-border pt-4 text-xs text-nuxt-muted">
-            Status lifecycle: Pending → Initialized → Confirmed (or Rejected /
-            Failed).
-          </div>
-        </div>
-      </aside>
+        <template #under-the-hood>
+          <li>
+            Status lifecycle: Pending → Initialized → Confirmed (or Rejected
+            / Failed).
+          </li>
+          <li>
+            Available balance is recomputed live from completed deposits
+            minus non-rejected/non-failed withdrawals on every request —
+            never a stored counter, so nothing can double-apply a credit.
+          </li>
+          <li>
+            USD values here use today's live exchange rate, unlike deposit
+            history's frozen quote — a rate-fetch failure shows "—", never
+            $0.00.
+          </li>
+        </template>
+      </HowItWorksPanel>
     </div>
   </div>
 </template>
