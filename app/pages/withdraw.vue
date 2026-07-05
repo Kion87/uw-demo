@@ -135,13 +135,14 @@ function statusLabel(status: string) {
   if (status === "pending") return "Pending";
   if (status === "initialized") return "Initialized";
   if (status === "confirmed") return "Confirmed";
+  if (status === "complete") return "Complete";
   if (status === "rejected") return "Rejected";
   if (status === "failed") return "Failed";
   return status;
 }
 
 function statusClass(status: string) {
-  if (status === "confirmed") {
+  if (status === "confirmed" || status === "complete") {
     return "bg-nuxt-emerald/15 text-nuxt-emerald";
   }
   if (status === "rejected" || status === "failed") {
@@ -576,15 +577,16 @@ onMounted(async () => {
             withdrawal by that reference id.
           </li>
           <li>
-            5) Status moves from pending to confirmed, or to
-            rejected/failed if Uniwire declines the payout outright.
+            5) Status moves from pending to confirmed and then complete as
+            on-chain confirmations accumulate, or to rejected/failed if
+            Uniwire declines the payout outright.
           </li>
         </template>
 
         <template #under-the-hood>
           <li>
-            Status lifecycle: Pending → Initialized → Confirmed (or Rejected
-            / Failed).
+            Status lifecycle: Pending → Initialized → Confirmed → Complete
+            (or Rejected / Failed).
           </li>
           <li>
             Available balance is recomputed live from completed deposits

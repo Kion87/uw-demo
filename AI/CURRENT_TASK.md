@@ -74,6 +74,6 @@ No specific task queued. Candidates, roughly in order of likely value: (1) decid
 1. Verify signature (same HMAC scheme as deposit callbacks)
 2. Accept callback delivery even on duplicate `callback_id`
 3. Match the withdrawal by our own `referenceId` first (generated before we ever contact Uniwire), falling back to `uniwirePayoutId` — `referenceId` is the reliable key since `uniwirePayoutId` may still be unknown to us if our original request was ambiguous (timeout/network error)
-4. Map `payout_pending`/`payout_confirmed`/`payout_complete`/`payout_rejected`/`payout_failed` to our `initialized`/`confirmed`/`confirmed`/`rejected`/`failed` status values
+4. Map `payout_pending`/`payout_confirmed`/`payout_complete`/`payout_rejected`/`payout_failed` to our `initialized`/`confirmed`/`complete`/`rejected`/`failed` status values (confirmed and complete are both credited/non-reversible — complete just reflects Uniwire's higher confirmation threshold, e.g. 12 vs 35 on Ethereum)
 5. Backfill `uniwirePayoutId` on the withdrawal row if we didn't already know it
 6. Return 2xx; unknown payout statuses are acknowledged and ignored, not errored

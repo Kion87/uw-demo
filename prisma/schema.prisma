@@ -116,7 +116,7 @@ model Withdrawal {
   uniwirePayoutId      String?   @unique
   txid                 String?
 
-  status               String    @default("reserved") // reserved | pending | initialized | confirmed | rejected | failed
+  status               String    @default("reserved") // reserved | pending | initialized | confirmed | complete | rejected | failed
   errorMessage         String?
 
   executedAt           DateTime?

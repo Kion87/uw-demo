@@ -117,9 +117,11 @@ Status mapping (`callback_status` → `Withdrawal.status`):
 
 - `payout_pending` → `initialized`
 - `payout_confirmed` → `confirmed`
-- `payout_complete` → `confirmed`
+- `payout_complete` → `complete`
 - `payout_rejected` → `rejected`
 - `payout_failed` → `failed`
+
+`confirmed` and `complete` are both terminal/credited states — Uniwire fires `confirmed` once the payout has enough on-chain confirmations to be considered settled (e.g. 12 on Ethereum) and `complete` once it clears a higher threshold (e.g. 35). Kept as distinct statuses (rather than collapsed into one) so the UI can show which stage a payout is in, consistently across the Dashboard and Withdraw page.
 
 An unrecognized `payout_*` status is acknowledged (2xx) and ignored, same policy as invoice callbacks.
 

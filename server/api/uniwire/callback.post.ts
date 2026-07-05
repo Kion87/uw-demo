@@ -146,7 +146,7 @@ export default defineEventHandler(async (h3event) => {
     const PAYOUT_STATUS_MAP: Record<string, string> = {
       payout_pending: "initialized",
       payout_confirmed: "confirmed",
-      payout_complete: "confirmed",
+      payout_complete: "complete",
       payout_rejected: "rejected",
       payout_failed: "failed",
     };

@@ -20,7 +20,7 @@ function toDisplayNetwork(assetKey: string) {
 }
 
 function withdrawalActivityStatus(status: string) {
-  if (status === "confirmed") return "completed";
+  if (status === "confirmed" || status === "complete") return status;
   if (status === "rejected" || status === "failed") return "failed";
   return "pending";
 }
