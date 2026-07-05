@@ -2,11 +2,28 @@
 import { ref, onMounted, onUnmounted } from "vue";
 
 const displayMode = useDisplayMode();
+const user = useState<any | null>("user");
 const isOpen = ref(false);
 const root = ref<HTMLElement | null>(null);
 
 function onDisplayModeToggle(checked: boolean) {
   displayMode.value = checked ? "crypto" : "usd";
+}
+
+async function onFixedAmountInvoicesToggle(checked: boolean) {
+  if (!user.value) return;
+  const previous = user.value.fixedAmountInvoices;
+  user.value.fixedAmountInvoices = checked;
+
+  try {
+    const res: any = await $fetch("/api/settings", {
+      method: "PATCH",
+      body: { fixedAmountInvoices: checked },
+    });
+    user.value = res.user;
+  } catch {
+    user.value.fixedAmountInvoices = previous;
+  }
 }
 
 function onDocumentClick(event: MouseEvent) {
@@ -61,7 +78,18 @@ onUnmounted(() => {
       <div class="my-1.5 border-t border-nuxt-border" />
 
       <SettingsSection label="Deposits">
-        <div class="py-2 text-sm text-nuxt-text opacity-45">Coming soon</div>
+        <div class="flex items-center justify-between py-2">
+          <div>
+            <div class="text-sm text-nuxt-text">Use fixed-amount invoices</div>
+            <div class="mt-0.5 text-[11px] text-nuxt-muted">
+              Request a specific amount per deposit instead of a reusable address
+            </div>
+          </div>
+          <ToggleSwitch
+            :model-value="user?.fixedAmountInvoices ?? false"
+            @update:model-value="onFixedAmountInvoicesToggle"
+          />
+        </div>
       </SettingsSection>
 
       <div class="my-1.5 border-t border-nuxt-border" />
