@@ -1,10 +1,8 @@
-# PROJECT_CONTEXT.md
-
 # UW Demo — Project Context
 
 ## References
 
-- Uniwire Quickstart: https://docs.uniwire.com/api/quickstart :contentReference[oaicite:1]{index=1}
+- Uniwire Quickstart: <https://docs.uniwire.com/api/quickstart> :contentReference[oaicite:1]{index=1}
 
 ## Goal
 
