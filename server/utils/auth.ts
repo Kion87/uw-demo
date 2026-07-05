@@ -14,7 +14,13 @@ export async function requireUser(event: any) {
     select: {
       expiresAt: true,
       user: {
-        select: { id: true, publicId: true, email: true, createdAt: true },
+        select: {
+          id: true,
+          publicId: true,
+          email: true,
+          createdAt: true,
+          fixedAmountInvoices: true,
+        },
       },
     },
   });
