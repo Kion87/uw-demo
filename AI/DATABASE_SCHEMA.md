@@ -92,7 +92,7 @@ Fields:
 - `referenceId` — **unique**, our own idempotency key
 - `uniwirePayoutId` — unique, nullable until backfilled by a callback
 - `txid`
-- `status` — `reserved | pending | initialized | confirmed | rejected | failed`
+- `status` — `reserved | pending | initialized | confirmed | complete | rejected | failed` (`confirmed`/`complete` are both terminal/credited — they reflect Uniwire's two confirmation thresholds, e.g. 12 vs 35 on Ethereum)
 - `errorMessage`
 - `executedAt`
 - `confirmedAt`
