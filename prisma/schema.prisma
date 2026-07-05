@@ -15,6 +15,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  fixedAmountInvoices Boolean @default(false)
+
   depositAddresses DepositAddress[]
   sessions         Session[]
   deposits Deposit[]
@@ -58,8 +60,14 @@ model Deposit {
   asset                String    // e.g. "USDT", "BTC"
   network              String    // e.g. "ETH", "BTC", "TRX", "SOL" (Uniwire "kind")
 
-  // Optional: invoices can be created without amount for reusable addresses
+  // Optional: invoices can be created without amount for reusable addresses.
+  // For fixed-amount invoices, this holds the amount actually paid so far
+  // (updated by invoice_* callbacks) - NOT the requested amount.
   amount               Decimal?  @db.Decimal(36, 18)
+
+  // Fixed-amount invoice ask, set once at creation. Null for reusable-address
+  // deposits (which have no "requested" concept).
+  requestedAmount      Decimal?  @db.Decimal(36, 18)
 
   // Fiat-equivalent value at time of deposit (from Uniwire's amount.paid.quotes.USD)
   fiatAmount           Decimal?  @db.Decimal(20, 6)
