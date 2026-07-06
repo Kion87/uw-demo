@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatUsd, formatCrypto } from "~/shared/format";
+import { formatUsd, formatCrypto, formatDepositProgress } from "~/shared/format";
 
 const displayMode = useDisplayMode();
 
@@ -70,12 +70,28 @@ function pillClass(status?: string | null) {
   return "bg-nuxt-gold/15 text-nuxt-gold";
 }
 
-function activityAmountClass(type?: string | null) {
-  return type === "withdrawal" ? "text-nuxt-muted2" : "text-nuxt-emerald";
+function activityAmountClass(row: any) {
+  if (row?.requestedAmount !== null && row?.requestedAmount !== undefined) {
+    return "text-nuxt-muted2";
+  }
+  return row?.type === "withdrawal" ? "text-nuxt-muted2" : "text-nuxt-emerald";
 }
 
 function activityAmountSign(type?: string | null) {
   return type === "withdrawal" ? "−" : "+";
+}
+
+function activityAmountText(row: any) {
+  if (row?.requestedAmount !== null && row?.requestedAmount !== undefined) {
+    return formatDepositProgress(row.amount, row.requestedAmount);
+  }
+
+  const value =
+    displayMode.value === "usd"
+      ? formatUsd(row?.usdValue)
+      : formatCrypto(row?.amount);
+
+  return `${activityAmountSign(row?.type)}${value}`;
 }
 
 onMounted(loadDashboard);
@@ -232,8 +248,8 @@ onMounted(loadDashboard);
               <span class="text-[13.5px] font-semibold capitalize text-nuxt-text">
                 {{ row.type }}
               </span>
-              <span class="font-mono text-[13.5px]" :class="activityAmountClass(row.type)">
-                {{ activityAmountSign(row.type) }}{{ displayMode === "usd" ? formatUsd(row.usdValue) : formatCrypto(row.amount) }}
+              <span class="font-mono text-[13.5px]" :class="activityAmountClass(row)">
+                {{ activityAmountText(row) }}
               </span>
               <span class="text-[13.5px] text-nuxt-muted2">{{ row.asset }}</span>
               <span class="text-[12.5px] text-nuxt-muted2">
@@ -267,8 +283,8 @@ onMounted(loadDashboard);
                 </span>
               </div>
               <div class="mt-2 flex items-center justify-between text-[13.5px]">
-                <span class="font-mono" :class="activityAmountClass(row.type)">
-                  {{ activityAmountSign(row.type) }}{{ displayMode === "usd" ? formatUsd(row.usdValue) : formatCrypto(row.amount) }} {{ row.asset }}
+                <span class="font-mono" :class="activityAmountClass(row)">
+                  {{ activityAmountText(row) }} {{ row.asset }}
                 </span>
                 <span class="text-[12.5px] text-nuxt-muted2">
                   {{ formatShortDate(row.createdAt) }}

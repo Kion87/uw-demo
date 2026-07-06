@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DEPOSIT_ASSETS, type DepositAssetKey } from "~/shared/deposits";
-import { formatCrypto, formatUsd } from "~/shared/format";
+import { formatCrypto, formatDepositProgress, formatUsd } from "~/shared/format";
 
 const displayMode = useDisplayMode();
 
@@ -128,15 +128,7 @@ function amountCellText(d: DepositHistoryItem) {
       : (d.amount ?? "—");
   }
 
-  const paid = Number(d.amount ?? 0);
-  const requested = Number(d.requestedAmount);
-  const due = requested - paid;
-
-  if (due > 0) {
-    return `Paid ${formatCrypto(paid)} of ${formatCrypto(requested)} · ${formatCrypto(due)} due`;
-  }
-
-  return `Paid ${formatCrypto(paid)} of ${formatCrypto(requested)}`;
+  return formatDepositProgress(d.amount, d.requestedAmount);
 }
 
 function explorerUrl(network: string, txid: string | null) {
@@ -586,38 +578,81 @@ onMounted(async () => {
       <!-- RIGHT -->
       <HowItWorksPanel>
         <template #steps>
-          <li>1) Pick an asset and network.</li>
-          <li>
-            2) Click <span class="text-nuxt-text">Create Deposit</span> — the
-            server returns your existing address for this asset, or creates a
-            new one at Uniwire.
-          </li>
-          <li>
-            3) Send crypto on-chain to that address. It stays reusable, so the
-            same address can receive multiple deposits over time.
-          </li>
-          <li>
-            4) Uniwire sends transaction callbacks as the deposit moves from
-            pending to confirmed.
-          </li>
-          <li>
-            5) Each callback is signature-verified and matched by Uniwire's
-            transaction id — not the invoice — so it's safe against webhook
-            retries.
-          </li>
+          <template v-if="user?.fixedAmountInvoices">
+            <li>1) Pick an asset and network, and enter the amount you're requesting.</li>
+            <li>
+              2) The server creates a one-off Uniwire invoice for that exact
+              amount and returns a deposit address for it.
+            </li>
+            <li>
+              3) Uniwire sends invoice callbacks as the invoice is paid.
+              <span class="text-nuxt-text">invoice_confirmed</span> or
+              <span class="text-nuxt-text">invoice_complete</span> means it's
+              fully paid — credit the client then.
+            </li>
+            <li>
+              4) If less than the requested amount arrives, you'll get
+              <span class="text-nuxt-text">invoice_incomplete</span> instead.
+              The requested vs. paid amounts shown here tell you exactly how
+              much more the client still owes.
+            </li>
+            <li>
+              5) To tolerate small underpayments (e.g. network fee slippage)
+              as if fully paid, enable an
+              <span class="text-nuxt-text">Acceptance Range</span> on your
+              Uniwire configuration profile.
+            </li>
+          </template>
+          <template v-else>
+            <li>1) Pick an asset and network.</li>
+            <li>
+              2) Click <span class="text-nuxt-text">Create Deposit</span> —
+              the server returns your existing address for this asset, or
+              creates a new one at Uniwire.
+            </li>
+            <li>
+              3) Send crypto on-chain to that address. It stays reusable, so
+              the same address can receive multiple deposits over time.
+            </li>
+            <li>
+              4) Uniwire sends transaction callbacks as the deposit moves from
+              pending to confirmed.
+            </li>
+            <li>
+              5) Each callback is signature-verified and matched by Uniwire's
+              transaction id — not the invoice — so it's safe against webhook
+              retries.
+            </li>
+          </template>
         </template>
 
         <template #under-the-hood>
-          <li>
-            Two-layer idempotency: the callback delivery is logged first
-            (dedupes retries), then the deposit row is upserted by
-            transaction id.
-          </li>
-          <li>
-            The USD value shown is Uniwire's own quote for that specific
-            transaction, captured at callback time — not a live rate — so it
-            always matches what was actually quoted.
-          </li>
+          <template v-if="user?.fixedAmountInvoices">
+            <li>
+              Each invoice callback carries the amount actually paid so far,
+              which is stored alongside the requested amount — so "paid vs.
+              due" always matches what Uniwire itself confirmed, without
+              needing to check the Uniwire dashboard.
+            </li>
+            <li>
+              <span class="text-nuxt-text">invoice_incomplete</span> is stored
+              as <span class="text-nuxt-text">underpaid</span> here, since
+              "incomplete" would otherwise collide with our substring-based
+              status matching for "complete".
+            </li>
+          </template>
+          <template v-else>
+            <li>
+              Two-layer idempotency: the callback delivery is logged first
+              (dedupes retries), then the deposit row is upserted by
+              transaction id.
+            </li>
+            <li>
+              The USD value shown is Uniwire's own quote for that specific
+              transaction, captured at callback time — not a live rate — so it
+              always matches what was actually quoted.
+            </li>
+          </template>
         </template>
 
         <template #extra>

@@ -139,6 +139,7 @@ export default defineEventHandler(async (event) => {
       type: "deposit" as const,
       asset: d.asset,
       amount: d.amount?.toString() ?? null,
+      requestedAmount: d.requestedAmount?.toString() ?? null,
       usdValue:
         d.fiatAmount !== null && d.fiatAmount !== undefined
           ? Number(d.fiatAmount)
