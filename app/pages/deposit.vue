@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DEPOSIT_ASSETS, type DepositAssetKey } from "~/shared/deposits";
-import { formatUsd } from "~/shared/format";
+import { formatCrypto, formatUsd } from "~/shared/format";
 
 const displayMode = useDisplayMode();
 
@@ -133,10 +133,10 @@ function amountCellText(d: DepositHistoryItem) {
   const due = requested - paid;
 
   if (due > 0) {
-    return `Paid ${paid} of ${requested} · ${due} due`;
+    return `Paid ${formatCrypto(paid)} of ${formatCrypto(requested)} · ${formatCrypto(due)} due`;
   }
 
-  return `Paid ${paid} of ${requested}`;
+  return `Paid ${formatCrypto(paid)} of ${formatCrypto(requested)}`;
 }
 
 function explorerUrl(network: string, txid: string | null) {
