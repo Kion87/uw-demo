@@ -95,6 +95,12 @@ watch(
   { immediate: true },
 );
 
+watch(showRecentDeposits, async (visible) => {
+  if (!visible) return;
+  await nextTick();
+  updateScrollHint();
+});
+
 function assetIconForBase(asset: BaseAsset) {
   return ASSET_ICONS[asset];
 }
@@ -124,6 +130,11 @@ function shortHash(value: string | null, start = 10, end = 8) {
 }
 
 function displayStatus(status: string | null) {
+  // Untouched since creation - no invoice_* callback has fired yet, so no
+  // transaction activity exists at all. Distinct from a real in-flight
+  // payment (see dashboard.get.ts's depositActivityStatus for the same call).
+  if (status === "new") return "New";
+
   if (status === "invoice_pending" || status === "invoice_confirmed") return "Pending";
   if (status === "invoice_complete") return "Complete";
   if (status === "underpaid") return "Underpaid";
@@ -235,6 +246,21 @@ async function loadDeposits() {
   } finally {
     historyLoading.value = false;
   }
+
+  await nextTick();
+  updateScrollHint();
+}
+
+const depositsTableScroll = ref<HTMLElement | null>(null);
+const showScrollHint = ref(false);
+
+function updateScrollHint() {
+  const el = depositsTableScroll.value;
+  if (!el) {
+    showScrollHint.value = false;
+    return;
+  }
+  showScrollHint.value = el.scrollWidth > el.clientWidth + el.scrollLeft + 1;
 }
 
 async function createDeposit() {
@@ -274,6 +300,12 @@ onMounted(async () => {
   if (me.value) {
     await loadDeposits();
   }
+
+  window.addEventListener("resize", updateScrollHint);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("resize", updateScrollHint);
 });
 </script>
 
@@ -509,17 +541,22 @@ onMounted(async () => {
               No deposits yet.
             </div>
 
-            <div v-else class="mt-4 overflow-x-auto">
+            <div v-else class="relative mt-4">
+              <div
+                ref="depositsTableScroll"
+                class="overflow-x-auto"
+                @scroll="updateScrollHint"
+              >
               <table class="min-w-full table-fixed text-left text-sm">
                 <thead class="text-nuxt-muted">
                   <tr class="border-b border-nuxt-border">
-                    <th class="w-[26%] px-3 py-3 font-medium">Created</th>
-                    <th class="w-[20%] px-3 py-3 font-medium">Asset</th>
-                    <th class="w-[12%] px-3 py-3 text-right font-medium">
+                    <th class="w-[22%] px-3 py-3 font-medium">Created</th>
+                    <th class="w-[16%] px-3 py-3 font-medium">Asset</th>
+                    <th class="w-[26%] py-3 pl-6 pr-3 font-medium">
                       Amount
                     </th>
-                    <th class="w-[14%] px-3 py-3 font-medium">Status</th>
-                    <th class="w-[28%] px-3 py-3 font-medium">TxID</th>
+                    <th class="w-[12%] px-3 py-3 font-medium">Status</th>
+                    <th class="w-[24%] px-3 py-3 font-medium">TxID</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -545,7 +582,7 @@ onMounted(async () => {
                     </td>
 
                     <td
-                      class="whitespace-nowrap px-3 py-3 text-right font-medium"
+                      class="whitespace-nowrap py-3 pl-6 pr-3 font-medium"
                     >
                       {{ amountCellText(d) }}
                     </td>
@@ -623,6 +660,25 @@ onMounted(async () => {
                   </tr>
                 </tbody>
               </table>
+              </div>
+
+              <div
+                v-if="showScrollHint"
+                class="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-end rounded-r-2xl bg-gradient-to-l from-nuxt-panel to-transparent pr-1"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-4 w-4 text-nuxt-muted"
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </div>
             </div>
           </div>
         </div>

@@ -26,6 +26,12 @@ function withdrawalActivityStatus(status: string) {
 }
 
 function depositActivityStatus(status: string | null) {
+  // Untouched since creation - no invoice_* callback has fired yet, meaning
+  // no transaction activity exists at all (per Uniwire, even invoice_pending
+  // implies a matching transaction sum already exists). Distinct from a real
+  // in-flight payment, so it gets its own bucket rather than "pending".
+  if (status === "new") return "new";
+
   if (status === "invoice_pending" || status === "invoice_confirmed") return "pending";
   if (status === "invoice_complete") return "complete";
   if (status === "underpaid") return "underpaid";
@@ -136,7 +142,7 @@ export default defineEventHandler(async (event) => {
   const activity = [
     ...recentDeposits.map((d: Deposit) => ({
       id: `deposit-${d.id}`,
-      type: "deposit" as const,
+      type: d.status === "new" ? ("invoice" as const) : ("deposit" as const),
       asset: d.asset,
       amount: d.amount?.toString() ?? null,
       requestedAmount: d.requestedAmount?.toString() ?? null,

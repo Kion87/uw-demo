@@ -72,6 +72,9 @@ function pillClass(status?: string | null) {
   if (status === "underpaid") {
     return "bg-nuxt-orange/15 text-nuxt-orange";
   }
+  if (status === "new") {
+    return "bg-nuxt-violet/15 text-nuxt-violet";
+  }
   return "bg-nuxt-gold/15 text-nuxt-gold";
 }
 
@@ -249,7 +252,7 @@ onMounted(loadDashboard);
           <!-- Table (sm and up) -->
           <div class="hidden sm:block">
             <div
-              class="grid grid-cols-[1.2fr_1fr_1fr_1fr_auto] border-t border-white/[0.06] px-6 py-2.5 text-[11.5px] font-bold uppercase tracking-[0.05em] text-nuxt-muted2"
+              class="grid grid-cols-[1.2fr_1fr_1fr_1fr_100px] border-t border-white/[0.06] px-6 py-2.5 text-[11.5px] font-bold uppercase tracking-[0.05em] text-nuxt-muted2"
             >
               <span>Type</span>
               <span>Amount</span>
@@ -261,12 +264,12 @@ onMounted(loadDashboard);
             <div
               v-for="row in dashboard.recentActivity"
               :key="row.id"
-              class="grid grid-cols-[1.2fr_1fr_1fr_1fr_auto] items-center border-t border-white/[0.06] px-6 py-3.5"
+              class="grid grid-cols-[1.2fr_1fr_1fr_1fr_100px] items-center border-t border-white/[0.06] px-6 py-3.5"
             >
               <span class="text-[13.5px] font-semibold capitalize text-nuxt-text">
                 {{ row.type }}
               </span>
-              <span class="font-mono text-[13.5px]" :class="activityAmountClass(row)">
+              <span class="text-[13.5px]" :class="activityAmountClass(row)">
                 {{ activityAmountText(row) }}
               </span>
               <span class="text-[13.5px] text-nuxt-muted2">{{ row.asset }}</span>
@@ -301,7 +304,7 @@ onMounted(loadDashboard);
                 </span>
               </div>
               <div class="mt-2 flex items-center justify-between text-[13.5px]">
-                <span class="font-mono" :class="activityAmountClass(row)">
+                <span :class="activityAmountClass(row)">
                   {{ activityAmountText(row) }} {{ row.asset }}
                 </span>
                 <span class="text-[12.5px] text-nuxt-muted2">
