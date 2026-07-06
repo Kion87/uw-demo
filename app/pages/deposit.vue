@@ -147,6 +147,26 @@ function displayStatus(status: string | null) {
   return status || "—";
 }
 
+// Mirrors index.vue's pillClass - same status categories, same colors, so a
+// deposit's pill looks identical here and on the Dashboard.
+function pillClass(status: string | null) {
+  const s = displayStatus(status).toLowerCase();
+
+  if (s === "completed" || s === "confirmed" || s === "complete") {
+    return "bg-nuxt-emerald/15 text-nuxt-emerald";
+  }
+  if (s === "failed") {
+    return "bg-rose-500/15 text-rose-400";
+  }
+  if (s === "underpaid") {
+    return "bg-nuxt-orange/15 text-nuxt-orange";
+  }
+  if (s === "new") {
+    return "bg-nuxt-violet/15 text-nuxt-violet";
+  }
+  return "bg-nuxt-gold/15 text-nuxt-gold";
+}
+
 function amountCellText(d: DepositHistoryItem) {
   if (d.requestedAmount === null) {
     return displayMode.value === "usd"
@@ -548,22 +568,22 @@ onUnmounted(() => {
                 @scroll="updateScrollHint"
               >
               <table class="min-w-full table-fixed text-left">
-                <thead class="text-nuxt-muted2 text-[11.5px] font-bold uppercase tracking-[0.05em]">
+                <thead class="text-nuxt-muted2 text-[10.5px] font-bold uppercase tracking-[0.05em]">
                   <tr class="border-b border-nuxt-border">
                     <th class="w-[22%] px-3 py-3">Created</th>
                     <th class="w-[16%] px-3 py-3">Asset</th>
                     <th class="w-[26%] py-3 pl-6 pr-3">
                       Amount
                     </th>
-                    <th class="w-[12%] px-3 py-3">Status</th>
-                    <th class="w-[24%] px-3 py-3">TxID</th>
+                    <th class="w-[20%] px-3 py-3">TxID</th>
+                    <th class="w-[16%] px-3 py-3">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr
                     v-for="d in deposits"
                     :key="d.id"
-                    class="border-b border-nuxt-border/60 align-top text-[13.5px]"
+                    class="border-b border-nuxt-border/60 align-top text-[12.5px]"
                   >
                     <td class="whitespace-nowrap px-3 py-3">
                       {{ formatDate(d.createdAt) }}
@@ -587,14 +607,10 @@ onUnmounted(() => {
                       {{ amountCellText(d) }}
                     </td>
 
-                    <td class="whitespace-nowrap px-3 py-3">
-                      {{ displayStatus(d.status) }}
-                    </td>
-
                     <td class="px-3 py-3">
                       <div class="flex items-center justify-between gap-3">
                         <span class="truncate" :title="d.txid || ''">
-                          {{ shortHash(d.txid, 12, 8) }}
+                          {{ shortHash(d.txid, 4, 4) }}
                         </span>
 
                         <div class="flex items-center gap-2 shrink-0">
@@ -656,6 +672,15 @@ onUnmounted(() => {
                           </a>
                         </div>
                       </div>
+                    </td>
+
+                    <td class="whitespace-nowrap px-3 py-3">
+                      <span
+                        class="rounded-full px-2.5 py-1 text-[11px] font-bold capitalize"
+                        :class="pillClass(d.status)"
+                      >
+                        {{ displayStatus(d.status) }}
+                      </span>
                     </td>
                   </tr>
                 </tbody>
