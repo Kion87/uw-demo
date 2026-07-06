@@ -547,23 +547,23 @@ onUnmounted(() => {
                 class="overflow-x-auto"
                 @scroll="updateScrollHint"
               >
-              <table class="min-w-full table-fixed text-left text-sm">
-                <thead class="text-nuxt-muted">
+              <table class="min-w-full table-fixed text-left">
+                <thead class="text-nuxt-muted2 text-[11.5px] font-bold uppercase tracking-[0.05em]">
                   <tr class="border-b border-nuxt-border">
-                    <th class="w-[22%] px-3 py-3 font-medium">Created</th>
-                    <th class="w-[16%] px-3 py-3 font-medium">Asset</th>
-                    <th class="w-[26%] py-3 pl-6 pr-3 font-medium">
+                    <th class="w-[22%] px-3 py-3">Created</th>
+                    <th class="w-[16%] px-3 py-3">Asset</th>
+                    <th class="w-[26%] py-3 pl-6 pr-3">
                       Amount
                     </th>
-                    <th class="w-[12%] px-3 py-3 font-medium">Status</th>
-                    <th class="w-[24%] px-3 py-3 font-medium">TxID</th>
+                    <th class="w-[12%] px-3 py-3">Status</th>
+                    <th class="w-[24%] px-3 py-3">TxID</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr
                     v-for="d in deposits"
                     :key="d.id"
-                    class="border-b border-nuxt-border/60 align-top"
+                    class="border-b border-nuxt-border/60 align-top text-[13.5px]"
                   >
                     <td class="whitespace-nowrap px-3 py-3">
                       {{ formatDate(d.createdAt) }}
