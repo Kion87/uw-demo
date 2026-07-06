@@ -243,17 +243,8 @@ export default defineEventHandler(async (h3event) => {
         ? undefined
         : String(paidAmount);
 
-    console.log("INVOICE CALLBACK", {
-      invoiceId,
-      callback_status: callbackStatus,
-      mapped_status: invoiceStatus,
-      requested: invoice?.amount?.requested,
-      paid: invoice?.amount?.paid,
-      duplicateCallback: isDuplicateCallback,
-    });
-
     await prisma.deposit.updateMany({
-      where: { uniwireInvoiceId: invoiceId },
+      where: { uniwireInvoiceId: invoiceId, requestedAmount: { not: null } },
       data: {
         status: invoiceStatus,
         amount: paidAmountStr,
