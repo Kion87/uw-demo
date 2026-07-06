@@ -103,25 +103,33 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Store deposit request in history/audit table. `requestedAmount` is the
-  // fixed-invoice ask (immutable); `amount` stays null until invoice_*/
-  // transaction_* callbacks report real paid activity.
-  const deposit = await prisma.deposit.create({
-    data: {
-      userId: user.id,
-      asset: assetConfig.currency,
-      network: assetConfig.kind,
-      ...(amount ? { requestedAmount: amount } : {}),
-      uniwireInvoiceId: invoiceId,
-      address,
-      status,
-    },
-  });
+  // Fixed-amount invoices: store the deposit row now, since it's the sole
+  // record the invoice_* callback will later update (updateMany only, never
+  // creates). Reusable addresses have no such row yet - creating one here
+  // would show up as a phantom "pending deposit" before any money moves, since
+  // the transaction_* callback (which finds its owner via DepositAddress, not
+  // Deposit) creates its own row once an actual deposit arrives.
+  const deposit = amount
+    ? await prisma.deposit.create({
+        data: {
+          userId: user.id,
+          asset: assetConfig.currency,
+          network: assetConfig.kind,
+          requestedAmount: amount,
+          uniwireInvoiceId: invoiceId,
+          address,
+          status,
+        },
+      })
+    : null;
 
   return {
     ok: true,
     deposit: {
       ...deposit,
+      address,
+      asset: assetConfig.currency,
+      network: assetConfig.kind,
       reused: false,
       passthrough,
     },
