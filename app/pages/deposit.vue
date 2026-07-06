@@ -53,6 +53,7 @@ const result = ref<any>(null);
 
 const deposits = ref<DepositHistoryItem[]>([]);
 const copied = ref(false);
+const copiedAmount = ref(false);
 const showRecentDeposits = ref(true);
 
 const BASE_TO_KEYS: Record<BaseAsset, DepositAssetKey[]> = {
@@ -190,6 +191,15 @@ async function copyAddress() {
   await navigator.clipboard.writeText(String(addr));
   copied.value = true;
   setTimeout(() => (copied.value = false), 900);
+}
+
+async function copyAmount() {
+  const amt = result.value?.deposit?.requestedAmount;
+  if (!amt) return;
+
+  await navigator.clipboard.writeText(String(amt));
+  copiedAmount.value = true;
+  setTimeout(() => (copiedAmount.value = false), 900);
 }
 
 async function loadMe() {
@@ -404,12 +414,21 @@ onMounted(async () => {
                   {{ result?.deposit?.address || "(no address returned)" }}
                 </div>
 
-                <div v-if="result?.deposit?.requestedAmount" class="mt-2 text-xs text-nuxt-muted">
-                  Requesting {{ formatCrypto(result.deposit.requestedAmount) }}
-                  {{ result.deposit.asset }}
-                  <span v-if="result?.deposit?.requestedFiatAmount">
-                    (≈ {{ formatUsd(Number(result.deposit.requestedFiatAmount)) }} at creation)
+                <div v-if="result?.deposit?.requestedAmount" class="mt-2 flex items-center gap-2 text-xs text-nuxt-muted">
+                  <span>
+                    Requesting {{ formatCrypto(result.deposit.requestedAmount) }}
+                    {{ result.deposit.asset }}
+                    <span v-if="result?.deposit?.requestedFiatAmount">
+                      (≈ {{ formatUsd(Number(result.deposit.requestedFiatAmount)) }} at creation)
+                    </span>
                   </span>
+                  <button
+                    class="rounded-lg border border-nuxt-border bg-nuxt-bg px-2 py-1 text-xs hover:opacity-90"
+                    @click="copyAmount"
+                  >
+                    Copy
+                  </button>
+                  <span v-if="copiedAmount">Copied</span>
                 </div>
 
                 <div class="mt-2 flex items-center gap-2">

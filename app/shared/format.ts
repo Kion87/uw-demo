@@ -16,7 +16,7 @@ export function formatCrypto(value?: string | number | null): string {
 // Fixed-amount invoices carry a `requestedAmount`; `paid` reflects what
 // Uniwire's invoice_* callbacks have reported so far. Surfacing "paid of
 // requested" here (rather than just a raw amount + status) is what lets a
-// client see how much more is due without checking the Uniwire dashboard.
+// client see progress without checking the Uniwire dashboard.
 // `format` picks the unit - formatCrypto (default) or formatUsd, with `paid`/
 // `requested` already expressed in that same unit by the caller.
 export function formatDepositProgress(
@@ -26,11 +26,6 @@ export function formatDepositProgress(
 ): string {
   const paidNum = Number(paid ?? 0);
   const requestedNum = Number(requested);
-  const due = requestedNum - paidNum;
-
-  if (due > 0) {
-    return `Paid ${format(paidNum)} of ${format(requestedNum)} · ${format(due)} due`;
-  }
 
   return `Paid ${format(paidNum)} of ${format(requestedNum)}`;
 }
