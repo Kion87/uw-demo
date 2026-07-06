@@ -26,6 +26,10 @@ function withdrawalActivityStatus(status: string) {
 }
 
 function depositActivityStatus(status: string | null) {
+  if (status === "invoice_pending" || status === "invoice_confirmed") return "pending";
+  if (status === "invoice_complete") return "complete";
+  if (status === "underpaid") return "underpaid";
+
   const s = (status ?? "").toLowerCase();
   if (s.includes("confirm")) return "confirmed";
   if (s.includes("complete")) return "complete";

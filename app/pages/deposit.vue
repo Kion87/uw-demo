@@ -12,6 +12,7 @@ type DepositHistoryItem = {
   asset: string;
   network: string;
   amount: string | null;
+  requestedAmount: string | null;
   fiatAmount: string | null;
   uniwireInvoiceId: string;
   address: string;
@@ -27,6 +28,8 @@ type DepositHistoryItem = {
 };
 
 const me = ref<any>(null);
+const user = useState<any | null>("user");
+const depositAmount = ref("");
 
 const base = ref<BaseAsset>("BTC");
 const selected = ref<DepositAssetKey>("BTC");
@@ -106,12 +109,34 @@ function shortHash(value: string | null, start = 10, end = 8) {
 }
 
 function displayStatus(status: string | null) {
+  if (status === "invoice_pending" || status === "invoice_confirmed") return "Pending";
+  if (status === "invoice_complete") return "Complete";
+  if (status === "underpaid") return "Underpaid";
+
   const s = String(status || "").toLowerCase();
 
   if (s.includes("pending")) return "Pending";
   if (s.includes("confirm") || s.includes("complete")) return "Complete";
 
   return status || "—";
+}
+
+function amountCellText(d: DepositHistoryItem) {
+  if (d.requestedAmount === null) {
+    return displayMode.value === "usd"
+      ? formatUsd(d.fiatAmount !== null ? Number(d.fiatAmount) : null)
+      : (d.amount ?? "—");
+  }
+
+  const paid = Number(d.amount ?? 0);
+  const requested = Number(d.requestedAmount);
+  const due = requested - paid;
+
+  if (due > 0) {
+    return `Paid ${paid} of ${requested} · ${due} due`;
+  }
+
+  return `Paid ${paid} of ${requested}`;
 }
 
 function explorerUrl(network: string, txid: string | null) {
@@ -198,9 +223,13 @@ async function createDeposit() {
   try {
     result.value = await $fetch("/api/deposit", {
       method: "POST",
-      body: { assetKey: selected.value },
+      body: {
+        assetKey: selected.value,
+        ...(depositAmount.value ? { amount: depositAmount.value } : {}),
+      },
     });
 
+    depositAmount.value = "";
     await loadDeposits();
   } catch (e: any) {
     error.value =
@@ -322,6 +351,20 @@ onMounted(async () => {
                   </div>
                 </button>
               </div>
+            </div>
+
+            <div v-if="user?.fixedAmountInvoices">
+              <label class="text-sm text-nuxt-muted" for="deposit-amount">
+                Amount (optional — leave blank for a reusable address)
+              </label>
+              <input
+                id="deposit-amount"
+                v-model="depositAmount"
+                type="text"
+                inputmode="decimal"
+                placeholder="e.g. 0.05"
+                class="mt-2 w-full rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-nuxt-text outline-none focus:ring-2 focus:ring-nuxt-green/50"
+              />
             </div>
 
             <button
@@ -459,7 +502,7 @@ onMounted(async () => {
                     <td
                       class="whitespace-nowrap px-3 py-3 text-right font-medium"
                     >
-                      {{ displayMode === "usd" ? formatUsd(d.fiatAmount !== null ? Number(d.fiatAmount) : null) : (d.amount ?? "—") }}
+                      {{ amountCellText(d) }}
                     </td>
 
                     <td class="whitespace-nowrap px-3 py-3">

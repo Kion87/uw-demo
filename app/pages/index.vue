@@ -64,6 +64,9 @@ function pillClass(status?: string | null) {
   if (status === "failed") {
     return "bg-rose-500/15 text-rose-400";
   }
+  if (status === "underpaid") {
+    return "bg-nuxt-orange/15 text-nuxt-orange";
+  }
   return "bg-nuxt-gold/15 text-nuxt-gold";
 }
 
