@@ -19,39 +19,43 @@ export default defineEventHandler(async (event) => {
   }
 
   const assetConfig = DEPOSIT_ASSET_BY_KEY[assetKey];
-  // 1) Reuse saved address per user+assetKey
-  const reuseKey = String(assetConfig.kind); // e.g. "TRX", "ETH", "SOL"
 
-  let existing = await prisma.depositAddress.findUnique({
-    where: { userId_assetKey: { userId: user.id, assetKey: reuseKey } },
-  });
+  // Fixed-amount invoices are one-off: never reused, never cached in
+  // DepositAddress. Only the amount-less (reusable) flow uses that cache.
+  if (!amount) {
+    const reuseKey = String(assetConfig.kind); // e.g. "TRX", "ETH", "SOL"
 
-  if (!existing) {
-    existing = await prisma.depositAddress.findUnique({
-      where: {
-        userId_assetKey: { userId: user.id, assetKey: String(assetKey) },
-      },
+    let existing = await prisma.depositAddress.findUnique({
+      where: { userId_assetKey: { userId: user.id, assetKey: reuseKey } },
     });
+
+    if (!existing) {
+      existing = await prisma.depositAddress.findUnique({
+        where: {
+          userId_assetKey: { userId: user.id, assetKey: String(assetKey) },
+        },
+      });
+    }
+
+    if (existing) {
+      return {
+        ok: true,
+        deposit: {
+          address: existing.address,
+          asset: assetConfig.currency,
+          network: assetConfig.kind,
+          reused: true,
+        },
+      };
+    }
   }
 
-  if (existing) {
-    return {
-      ok: true,
-      deposit: {
-        address: existing.address,
-        asset: assetConfig.currency,
-        network: assetConfig.kind,
-        reused: true,
-      },
-    };
-  }
-
-  // 2) passthrough should be "0001" style (prefer publicId, fallback to padded id)
+  // passthrough should be "0001" style (prefer publicId, fallback to padded id)
   const passthrough =
     (user.publicId ? String(user.publicId).replace(/^ID/i, "") : null) ??
     String(user.id).padStart(4, "0");
 
-  // 3) Create invoice on Uniwire
+  // Create invoice on Uniwire
   const payload: any = {
     profile_id: process.env.UNIWIRE_PROFILE_ID,
     currency: assetConfig.currency,
@@ -59,7 +63,7 @@ export default defineEventHandler(async (event) => {
     passthrough,
   };
 
-  // Optional amount (you said you'll leave empty for reusable addresses)
+  // Optional amount - fixed-amount invoice flow only
   if (amount) payload.amount = amount;
 
   const invoiceResponse = await uniwireRequest<any>(
@@ -86,23 +90,28 @@ export default defineEventHandler(async (event) => {
   const address = String(inv.address);
   const status = String(inv.status ?? "new");
 
-  // 4) Save reusable address for this user+assetKey
-  await prisma.depositAddress.create({
-    data: {
-      userId: user.id,
-      assetKey: reuseKey,
-      invoiceId,
-      address,
-    },
-  });
+  // Save reusable address for this user+assetKey - fixed-amount invoices skip
+  // this entirely, since they're one-off and never looked up again.
+  if (!amount) {
+    await prisma.depositAddress.create({
+      data: {
+        userId: user.id,
+        assetKey: String(assetConfig.kind),
+        invoiceId,
+        address,
+      },
+    });
+  }
 
-  // 5) Store deposit request in history/audit table
+  // Store deposit request in history/audit table. `requestedAmount` is the
+  // fixed-invoice ask (immutable); `amount` stays null until invoice_*/
+  // transaction_* callbacks report real paid activity.
   const deposit = await prisma.deposit.create({
     data: {
       userId: user.id,
       asset: assetConfig.currency,
       network: assetConfig.kind,
-      ...(amount ? { amount } : {}),
+      ...(amount ? { requestedAmount: amount } : {}),
       uniwireInvoiceId: invoiceId,
       address,
       status,
