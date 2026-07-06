@@ -5,6 +5,7 @@
 - `id` (Int, PK)
 - `publicId` (String, unique in practice; used for passthrough lookup)
 - `email` (String)
+- `fixedAmountInvoices` (Boolean, default `false`) — per-user, all-assets setting; when on, the Deposit page shows an optional amount field. Purely a UI-visibility switch — `POST /api/deposit`'s actual behavior is driven by whether `amount` is present in the request, not by this column, so nothing server-side enforces it
 - optional future:
   - `balance` (Decimal)
 
@@ -49,7 +50,8 @@ Fields:
 - `userId`
 - `asset`
 - `network`
-- `amount`
+- `amount` — actual amount involved: set from `transaction.amount.paid.amount` for reusable-address deposits, or from `invoice.amount.paid.amount` (cumulative paid-so-far) for fixed-amount invoices. Null until real payment activity is reported either way
+- `requestedAmount` — fixed-amount invoice ask, set once at creation (`POST /api/deposit` with an `amount`). **Null for reusable-address deposits**, which have no "requested" concept — this is the field that distinguishes the two deposit flows on a given row
 - `fiatAmount` — USD-equivalent value at time of deposit (from Uniwire's `amount.paid.quotes.USD`)
 - `fiatCurrency` — currently always `"USD"` when `fiatAmount` is set, nullable otherwise
 - `uniwireInvoiceId` — **not unique**
@@ -66,7 +68,7 @@ Fields:
 
 Notes:
 
-- `status` should reflect transaction lifecycle such as pending / confirmed / complete
+- `status` should reflect transaction lifecycle such as pending / confirmed / complete for reusable-address deposits (`requestedAmount` null), or `invoice_pending` / `invoice_confirmed` / `invoice_complete` / `underpaid` for fixed-amount invoices (`requestedAmount` set) — only `invoice_complete`/`complete`/`confirmed` are in `COMPLETED_STATUSES` (`server/utils/balances.ts`) and count toward available balance
 - `creditedAt` is reserved for idempotent balance crediting later
 - `executedAt` / `confirmedAt` may be null on pending callbacks and filled later on confirmed callbacks
 - `fiatAmount` may be null if Uniwire's payload doesn't include a `quotes.USD` value (not confirmed to be present on every callback) — the dashboard treats this as a normal, permanent possibility, rendering `—` (never a fabricated `$0.00`), not an error

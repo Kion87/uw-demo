@@ -154,3 +154,20 @@ Reason:
 - **This appears to conflict with Decision #10's "rather than maintaining our own price feed/exchange-rate table."** The distinction: Decision #10 is about not re-deriving what a *specific past transaction* was quoted at (where a live feed could drift from the real historical quote); this decision is about valuing *current, unrealized* holdings, where "drift from what the user actually paid" doesn't apply. Decision #10 still governs deposit-side figures unchanged. If this reasoning stops holding up, revisit both decisions together rather than patching one in isolation.
 - a live-rate failure (network error, missing symbol) surfaces as `usdValue: null` end-to-end, rendered as `—` — never a fabricated `$0.00`, consistent with Decision #10's original spirit of not showing invented numbers
 - no caching layer on `getRatesUsd()` — acceptable at demo-scale traffic, but means `GET /api/dashboard` and `GET /api/withdrawals` can each fetch a slightly different rate snapshot within the same page load (see Known Gaps in `CURRENT_TASK.md`)
+
+## 14) Fixed-Amount Invoices Are a Fully Separate Lifecycle, Not a Variant of the Reusable Flow
+
+Decision:
+
+- fixed-amount deposit invoices (`POST /api/deposit` with an `amount`) never touch `DepositAddress` and are never reused — every request creates a brand-new, one-off invoice, tracked via the new `Deposit.requestedAmount` column
+- their status/crediting is driven entirely by `invoice_*` webhook callbacks (previously ignored outright), not `transaction_*` — the two callback types are handled by fully separate code paths that happen to share the same endpoint
+- crediting only fires on `invoice_complete`, using the actual paid amount — a stricter, later threshold than the reusable flow's `transaction_confirmed`
+- the `invoice_*` → `Deposit` match (`prisma.deposit.updateMany`) is scoped with a `requestedAmount: { not: null }` guard, so it can never reach a reusable-address deposit row even under an unexpected `uniwireInvoiceId` collision
+
+Reason:
+
+- `DepositAddress`'s entire purpose is "the one reusable address for this user+asset" — letting a one-off, amount-specific invoice pass through that cache would either pollute it (confusing a later reusable request) or require carving out exceptions inside a table whose meaning is otherwise simple and singular
+- the two flows have genuinely different correctness requirements: reusable addresses should credit as soon as a transaction is seen confirmed (any amount is valid, since none was requested), while a fixed-amount invoice's whole point is knowing whether the *requested* amount actually arrived — conflating them into one status vocabulary/threshold would either under-credit reusable deposits or over-credit incomplete fixed invoices
+- the `requestedAmount` scope guard was added after a whole-branch review flagged that matching by `uniwireInvoiceId` alone was an unverified assumption resting entirely on Uniwire's real-world callback behavior (never confirmed against a captured payload — see Known Gaps in `CURRENT_TASK.md`); the guard converts that assumption into an enforced invariant at negligible cost
+
+This is in the same spirit as Decision #13 (two different, both-correct questions get two different answers) rather than a contradiction of it.
