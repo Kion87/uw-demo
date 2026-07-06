@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { DEPOSIT_ASSETS, type DepositAssetKey } from "~/shared/deposits";
+import {
+  DEPOSIT_ASSET_BY_KEY,
+  DEPOSIT_ASSETS,
+  type DepositAssetKey,
+} from "~/shared/deposits";
 import { formatCrypto, formatDepositProgress, formatUsd } from "~/shared/format";
 
 const displayMode = useDisplayMode();
@@ -30,6 +34,7 @@ type DepositHistoryItem = {
 const me = ref<any>(null);
 const user = useState<any | null>("user");
 const depositAmount = ref("");
+const lastRequestedUsd = ref<string | null>(null);
 
 const base = ref<BaseAsset>("BTC");
 const selected = ref<DepositAssetKey>("BTC");
@@ -67,6 +72,10 @@ const networkOptions = computed(() => {
   const allowed = new Set(BASE_TO_KEYS[base.value] || []);
   return DEPOSIT_ASSETS.filter((a) => allowed.has(a.key));
 });
+
+const selectedCurrency = computed(
+  () => DEPOSIT_ASSET_BY_KEY[selected.value]?.currency ?? selected.value,
+);
 
 watch(
   base,
@@ -217,10 +226,16 @@ async function createDeposit() {
       method: "POST",
       body: {
         assetKey: selected.value,
-        ...(depositAmount.value ? { amount: depositAmount.value } : {}),
+        ...(depositAmount.value
+          ? { amount: depositAmount.value, amountCurrency: displayMode.value }
+          : {}),
       },
     });
 
+    lastRequestedUsd.value =
+      depositAmount.value && displayMode.value === "usd"
+        ? depositAmount.value
+        : null;
     depositAmount.value = "";
     await loadDeposits();
   } catch (e: any) {
@@ -347,14 +362,15 @@ onMounted(async () => {
 
             <div v-if="user?.fixedAmountInvoices">
               <label class="text-sm text-nuxt-muted" for="deposit-amount">
-                Amount (optional — leave blank for a reusable address)
+                Amount in {{ displayMode === "usd" ? "USD" : selectedCurrency }}
+                (optional — leave blank for a reusable address)
               </label>
               <input
                 id="deposit-amount"
                 v-model="depositAmount"
                 type="text"
                 inputmode="decimal"
-                placeholder="e.g. 0.05"
+                :placeholder="displayMode === 'usd' ? 'e.g. 50' : 'e.g. 0.05'"
                 class="mt-2 w-full rounded-lg border border-nuxt-border bg-nuxt-bg px-3 py-2 text-nuxt-text outline-none focus:ring-2 focus:ring-nuxt-green/50"
               />
             </div>
@@ -376,6 +392,14 @@ onMounted(async () => {
                   class="mt-2 break-all rounded-lg border border-nuxt-border bg-nuxt-bg p-3"
                 >
                   {{ result?.deposit?.address || "(no address returned)" }}
+                </div>
+
+                <div v-if="result?.deposit?.requestedAmount" class="mt-2 text-xs text-nuxt-muted">
+                  Requesting {{ formatCrypto(result.deposit.requestedAmount) }}
+                  {{ result.deposit.asset }}
+                  <span v-if="lastRequestedUsd">
+                    (≈ {{ formatUsd(Number(lastRequestedUsd)) }} at creation)
+                  </span>
                 </div>
 
                 <div class="mt-2 flex items-center gap-2">
@@ -628,6 +652,12 @@ onMounted(async () => {
 
         <template #under-the-hood>
           <template v-if="user?.fixedAmountInvoices">
+            <li>
+              The amount field follows your USD/crypto display setting — in
+              USD mode, what you type is converted to crypto at the current
+              rate before the invoice is created, since Uniwire invoices are
+              always crypto-denominated.
+            </li>
             <li>
               Each invoice callback carries the amount actually paid so far,
               which is stored alongside the requested amount — so "paid vs.

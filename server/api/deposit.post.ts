@@ -1,6 +1,7 @@
 import { requireUser } from "../../server/utils/auth";
 import { prisma } from "../../server/utils/prisma";
 import { uniwireRequest } from "../../server/utils/uniwire";
+import { getRatesUsd } from "../utils/rates";
 import { DEPOSIT_ASSET_BY_KEY, type DepositAssetKey } from "~/shared/deposits";
 
 export default defineEventHandler(async (event) => {
@@ -9,9 +10,10 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody(event);
 
-  const { assetKey, amount } = body as {
+  const { assetKey, amount: rawAmount, amountCurrency } = body as {
     assetKey: DepositAssetKey;
     amount?: string;
+    amountCurrency?: "usd" | "crypto";
   };
 
   if (!assetKey || !DEPOSIT_ASSET_BY_KEY[assetKey]) {
@@ -19,6 +21,24 @@ export default defineEventHandler(async (event) => {
   }
 
   const assetConfig = DEPOSIT_ASSET_BY_KEY[assetKey];
+
+  // The Deposit page's amount field follows the user's USD/crypto display
+  // mode - convert here so Uniwire's invoice (always crypto-denominated)
+  // gets the right figure either way.
+  let amount = rawAmount;
+  if (rawAmount && amountCurrency === "usd") {
+    const rates = await getRatesUsd();
+    const rateUsd = rates.get(assetConfig.currency);
+
+    if (!rateUsd) {
+      throw createError({
+        statusCode: 502,
+        statusMessage: `No exchange rate available for ${assetConfig.currency}`,
+      });
+    }
+
+    amount = (Number(rawAmount) / rateUsd).toFixed(8);
+  }
 
   // Fixed-amount invoices are one-off: never reused, never cached in
   // DepositAddress. Only the amount-less (reusable) flow uses that cache.
