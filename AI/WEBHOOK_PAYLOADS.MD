@@ -179,3 +179,60 @@ From payload.transaction:
   }
 }
 ```
+
+## Invoice Creation Response (`POST /v1/invoices/`)
+
+Captured live against the sandbox API — not a webhook callback, but the direct response to invoice creation, confirming the `amount.requested`/`amount.invoiced` shape referenced throughout `UNIWIRE_INTEGRATION.md` and `ARCHITECTURE_DECISIONS.md` (#16).
+
+Request `{ profile_id, currency: "ETH", kind: "ETH", passthrough: "9999", amount: "0.001" }` (crypto-denominated ask):
+
+```json
+{
+  "result": {
+    "id": "3574afc0-2435-41c3-a850-2b494385aca7",
+    "kind": "ETH",
+    "created_at": "2026-07-06T20:06:30.276557+00:00",
+    "profile_id": "eb433f9f-77be-4acb-89b0-51ebfe71e17f",
+    "address": "0xF6c31e0B20aAB2d5c9131BeA5c35F4E46Fca967C",
+    "status": "new",
+    "expires_at": "2026-07-06T20:21:30.276323+00:00",
+    "network": "testnet",
+    "amount": {
+      "requested": { "amount": "0.001", "currency": "ETH" },
+      "invoiced": { "amount": "0.001", "currency": "ETH" }
+    },
+    "passthrough": "9999",
+    "transactions": []
+  }
+}
+```
+
+Same request with `currency: "USD"` instead (fiat-denominated ask — `amount: "20"`):
+
+```json
+{
+  "result": {
+    "id": "7de6f799-7877-42b9-a2d1-8952ff78096a",
+    "kind": "ETH",
+    "created_at": "2026-07-06T20:06:31.226511+00:00",
+    "profile_id": "eb433f9f-77be-4acb-89b0-51ebfe71e17f",
+    "address": "0xcA7f3C9D1D9837f02D2a1a355Ffd90B5497F3a3A",
+    "status": "new",
+    "expires_at": "2026-07-06T20:21:31.226257+00:00",
+    "network": "testnet",
+    "amount": {
+      "requested": { "amount": "20.00", "currency": "USD" },
+      "invoiced": { "amount": "0.01118885", "currency": "ETH" }
+    },
+    "passthrough": "9999",
+    "transactions": []
+  }
+}
+```
+
+Notes:
+
+- `kind` is always the asset/network regardless of which currency `amount`/`currency` used
+- `status` is the literal string `"new"` at creation, before any transaction activity — see Architecture Decision #17
+- `expires_at` is exactly 15 minutes after `created_at` in both captures — not currently used by this app (see `DEPOSIT_FLOW.md`/`ARCHITECTURE_DECISIONS.md` Non-Goals), but available if invoice-expiry handling is ever added
+- `amount.invoiced` is always crypto and is what this app stores as `Deposit.requestedAmount`; `amount.requested` mirrors the request's currency/amount and is stored as `Deposit.requestedFiatAmount` only when it's USD

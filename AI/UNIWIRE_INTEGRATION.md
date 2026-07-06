@@ -32,6 +32,19 @@ Passthrough rule:
 
 - `passthrough = user.publicId` (e.g. `"0001"`)
 
+Amount/currency semantics (fixed-amount invoices only — reusable-address invoices never set `amount`):
+
+- `kind` is always the asset/network (e.g. `"ETH"`, `"BTC"`) — it never changes based on what currency the amount is in
+- `currency` is what `amount` is denominated in, and **can be a fiat currency**: sending `{ currency: "USD", kind: "ETH", amount: "20" }` is valid and lets Uniwire compute the crypto conversion itself, rather than this app guessing a rate — verified directly against the sandbox API
+- the response always includes both figures regardless of which currency the request used:
+  ```json
+  "amount": {
+    "requested": { "amount": "20.00", "currency": "USD" },
+    "invoiced": { "amount": "0.01118885", "currency": "ETH" }
+  }
+  ```
+  `amount.invoiced` is the actual on-chain amount the address expects and is always crypto; `amount.requested` mirrors whatever currency/amount was sent. This app stores `amount.invoiced.amount` as `Deposit.requestedAmount` always, and additionally stores `amount.requested.amount` as `Deposit.requestedFiatAmount` when the request was USD-denominated (see Architecture Decision #16)
+
 ## Callback Endpoint
 
 Your app:
@@ -152,6 +165,8 @@ The invoice callback shares its shape with the "Get Invoice" endpoint response, 
 - `invoice_confirmed` → `invoice_confirmed`
 - `invoice_complete` → `invoice_complete`
 - `invoice_incomplete` → `underpaid` (**not** the raw string — `"invoice_incomplete"` contains `"complete"` as a substring, which would collide with this app's substring-based status classifiers, e.g. `depositActivityStatus()`/`displayStatus()`, and make an underpaid invoice look done)
+
+Before any callback arrives, `Deposit.status` is still whatever Uniwire returned at invoice-creation time — in practice always the literal string `"new"`. Since even `invoice_pending` implies a matching transaction sum already exists, `"new"` reliably means zero transaction activity has happened. The UI treats this as its own category (type "Invoice", status "New") rather than "pending" — see Architecture Decision #17.
 
 ### Crediting
 

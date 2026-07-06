@@ -25,7 +25,7 @@ Server logic:
 5. lookup `DepositAddress` by `(userId, assetKey/reuseKey logic)`
 6. return existing address if found
 7. else create invoice/address at Uniwire
-8. store `DepositAddress` (reusable flow only — never for a fixed-amount invoice)
+8. store `DepositAddress` (reusable flow only — never for a fixed-amount invoice). **No `Deposit` row is created here** — only once an actual `transaction_*` callback arrives does a `Deposit` row get created (upserted by transaction id). Creating one at this step used to leave a permanent phantom "Pending" entry with no real money behind it, since the eventual real deposit lands in a separate row anyway
 9. return address to frontend
 
 ## 2) User Deposits Crypto
@@ -80,24 +80,29 @@ Deposit page now shows **Recent Deposits**:
 - Created
 - Asset
 - Amount
-- Status
 - TxID
+- Status
 
 Features:
 
-- TxID copy action
-- explorer link based on network
-- show/hide recent deposits section
+- TxID shown as `4...4` truncated hash, alongside copy and explorer-link actions
+- Status rendered as a colored pill, same color mapping as the Dashboard's Recent Activity (`pillClass()`, duplicated per-page like the other status classifiers)
+- show/hide recent deposits section, with a right-edge scroll fade + chevron hint when the table overflows its container (cleared once scrolled to the end)
 - asset icons in selection and history UI
+- table typography matches the Dashboard's Recent Activity scale (small uppercase letter-spaced headers, compact row text) rather than the browser-default size
 
 ## 6) Fixed-Amount Invoices (Alternative Flow)
 
-Opt-in per-user setting (`User.fixedAmountInvoices`, toggled in Settings → Deposits) that shows an optional amount field on the Deposit page. If the user fills it in, `POST /api/deposit` is called with `amount` set, which:
+Opt-in per-user setting (`User.fixedAmountInvoices`, toggled in Settings → Deposits) that shows an optional amount field on the Deposit page. The field follows the page's USD/crypto display toggle — its label reads "Amount in USD" or "Amount in \<ASSET\>" accordingly. If the user fills it in, `POST /api/deposit` is called with `amount` (and `amountCurrency: "usd" | "crypto"`) set, which:
 
 - skips the `DepositAddress` reuse cache entirely (never looked up, never written) — every fixed-amount request creates a brand-new, one-off invoice/address
-- stores the ask in `Deposit.requestedAmount` (not `amount` — that field keeps meaning "actual amount paid so far" everywhere in this codebase)
+- when the amount is USD, sends `currency: "USD"` to Uniwire (not the asset) — Uniwire computes and returns the actual crypto amount to invoice itself, rather than this app guessing a rate via its own `getRatesUsd()` call. Verified directly against the sandbox API: `{ currency: "USD", kind: "ETH", amount: "20" }` returns `amount: { requested: { amount: "20.00", currency: "USD" }, invoiced: { amount: "0.0111...", currency: "ETH" } }`
+- stores the crypto figure (`amount.invoiced.amount`) in `Deposit.requestedAmount` (not `amount` — that field keeps meaning "actual amount paid so far" everywhere in this codebase) and, when requested in USD, the fiat figure (`amount.requested.amount`) in `Deposit.requestedFiatAmount`
+- the Create Deposit result panel echoes back the actual crypto amount invoiced, with a copy button and (when applicable) the USD equivalent, so the conversion is visible and pasteable into a wallet
 
-From there, the lifecycle is driven by `invoice_*` webhook callbacks (previously ignored entirely), not `transaction_*` — see the "Invoice Callbacks" section of `AI/UNIWIRE_INTEGRATION.md` for statuses, field mapping, and the crediting rule (only `invoice_complete` credits, using the actual paid amount). The Deposit page's Recent Deposits table shows "Paid X of Y · Z due" for these rows instead of the plain amount.
+From there, the lifecycle is driven by `invoice_*` webhook callbacks (previously ignored entirely), not `transaction_*` — see the "Invoice Callbacks" section of `AI/UNIWIRE_INTEGRATION.md` for statuses, field mapping, and the crediting rule (only `invoice_complete` credits, using the actual paid amount). The Deposit page's Recent Deposits table and Dashboard's Recent Activity both show "Paid X of Y" for these rows instead of the plain amount — in USD when `requestedFiatAmount` is set and the display toggle is on USD (converted via the invoice's own implied rate, `requestedFiatAmount / requestedAmount`), otherwise in crypto.
+
+A row that's still at status `"new"` (no `invoice_*` callback has fired yet — see Architecture Decision #17) displays as type **Invoice**, status **New**, distinct from an in-flight **Deposit** (Pending → Confirmed/Underpaid → Complete) — same row throughout, just relabeled as its status progresses.
 
 ## 7) Supported Deposit Assets (Current)
 

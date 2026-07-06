@@ -171,3 +171,41 @@ Reason:
 - the `requestedAmount` scope guard was added after a whole-branch review flagged that matching by `uniwireInvoiceId` alone was an unverified assumption resting entirely on Uniwire's real-world callback behavior (never confirmed against a captured payload — see Known Gaps in `CURRENT_TASK.md`); the guard converts that assumption into an enforced invariant at negligible cost
 
 This is in the same spirit as Decision #13 (two different, both-correct questions get two different answers) rather than a contradiction of it.
+
+## 15) No Deposit Row at Reusable-Address Creation Time
+
+Decision:
+
+- `POST /api/deposit` without an `amount` (reusable-address flow) only creates/looks up `DepositAddress` — it does **not** also create a `Deposit` row
+
+Reason:
+
+- it used to: a `Deposit` row was created immediately with `status: "new"`, `amount: null`, no `uniwireTransactionId`. When a real deposit later arrived, the `transaction_*` callback upserts by transaction id — keyed differently from the invoice-creation row — so it created a *second*, separate row rather than updating the first. The original row was never touched again and lingered forever as a fake "Pending" entry in Recent Deposits and Dashboard Recent Activity, and inflated the `totalDeposits`/`pendingDeposits` stat counts
+- verified nothing else depends on that row existing: the `transaction_*` callback's ownership check matches against `DepositAddress`, not `Deposit` (see `UNIWIRE_INTEGRATION.md`), so removing the premature row creation is safe
+- fixed-amount invoices are unaffected and still create their row upfront (Decision #14) — that flow genuinely needs it, since the `invoice_*` callback only updates an existing row, never creates one
+
+## 16) Uniwire-Native USD Invoices Instead of Client-Side Rate Conversion
+
+Decision:
+
+- when the Deposit page's amount field is used in USD display mode, `POST /api/deposit` sends Uniwire `currency: "USD"` (with `kind` still the asset/network) rather than converting the USD figure to crypto itself via `getRatesUsd()`
+- Uniwire's response's `amount.invoiced.amount` (always crypto) becomes `Deposit.requestedAmount` as before; `amount.requested.amount` (the USD ask, when that's what was sent) is additionally stored in the new `Deposit.requestedFiatAmount` column
+
+Reason:
+
+- Uniwire's own conversion is authoritative — it's the exact figure Uniwire itself uses to judge whether the invoice is fully paid (`invoice_complete`), so a self-computed rate could subtly mismatch by the time a real conversion-rate snapshot is taken, even if only by seconds
+- verified live against the sandbox API before adopting this approach, rather than assumed from documentation
+- storing `requestedFiatAmount` closes a real gap: without it, there was no persisted USD figure anywhere, so "Paid $X of $Y" could only ever render in crypto regardless of the user's display-mode preference
+
+## 17) "New" vs "Pending" Are Distinct Deposit States, Not Two Rows
+
+Decision:
+
+- a fixed-amount invoice row whose `status` is still `"new"` (no `invoice_*` callback has fired yet) is displayed as type **"Invoice"**, status **"New"** — distinct from an in-flight payment, which displays as type **"Deposit"**, status **"Pending"** → **"Confirmed"/"Underpaid"** → **"Complete"**
+- this is the **same single row** throughout its lifecycle, relabeled purely at the display layer as its `status` value changes over time — not two separate rows
+- the Dashboard's `totalDeposits`/`pendingDeposits` stat counts explicitly exclude `status: "new"` rows for the same reason
+
+Reason:
+
+- per Uniwire's own docs, even `invoice_pending` implies a matching transaction sum already exists — so a row still at `"new"` reliably means zero transaction activity has happened at all, which is a meaningfully different, less-alarming state than "payment in flight, awaiting confirmation." Labeling both "Pending" made a freshly-created, untouched invoice look like money was already moving
+- considered making this two separate rows (an "invoice created" event and a later "deposit" event, mirroring how the reusable-address flow's `DepositAddress`-creation event is conceptually separate from its eventual `Deposit` row) but rejected it: the `invoice_*` callback handler only updates an existing row by `uniwireInvoiceId` and would need new create-vs-update branching logic, and every dashboard stat that counts `Deposit` rows would double-count any invoice that ever gets paid — the same class of bug Decision #15 just fixed. A single relabeled row achieves the same visible behavior with no schema or callback changes
