@@ -1,7 +1,6 @@
 import { requireUser } from "../../server/utils/auth";
 import { prisma } from "../../server/utils/prisma";
 import { uniwireRequest } from "../../server/utils/uniwire";
-import { getRatesUsd } from "../utils/rates";
 import { DEPOSIT_ASSET_BY_KEY, type DepositAssetKey } from "~/shared/deposits";
 
 export default defineEventHandler(async (event) => {
@@ -10,7 +9,7 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody(event);
 
-  const { assetKey, amount: rawAmount, amountCurrency } = body as {
+  const { assetKey, amount, amountCurrency } = body as {
     assetKey: DepositAssetKey;
     amount?: string;
     amountCurrency?: "usd" | "crypto";
@@ -21,24 +20,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const assetConfig = DEPOSIT_ASSET_BY_KEY[assetKey];
-
-  // The Deposit page's amount field follows the user's USD/crypto display
-  // mode - convert here so Uniwire's invoice (always crypto-denominated)
-  // gets the right figure either way.
-  let amount = rawAmount;
-  if (rawAmount && amountCurrency === "usd") {
-    const rates = await getRatesUsd();
-    const rateUsd = rates.get(assetConfig.currency);
-
-    if (!rateUsd) {
-      throw createError({
-        statusCode: 502,
-        statusMessage: `No exchange rate available for ${assetConfig.currency}`,
-      });
-    }
-
-    amount = (Number(rawAmount) / rateUsd).toFixed(8);
-  }
+  const isUsdAmount = Boolean(amount) && amountCurrency === "usd";
 
   // Fixed-amount invoices are one-off: never reused, never cached in
   // DepositAddress. Only the amount-less (reusable) flow uses that cache.
@@ -75,10 +57,14 @@ export default defineEventHandler(async (event) => {
     (user.publicId ? String(user.publicId).replace(/^ID/i, "") : null) ??
     String(user.id).padStart(4, "0");
 
-  // Create invoice on Uniwire
+  // Create invoice on Uniwire. `kind` is always the asset/network; `currency`
+  // is what the amount below is denominated in - Uniwire accepts a fiat
+  // currency here and computes the crypto equivalent itself (amount.invoiced
+  // in the response), which is more accurate than us guessing a rate, since
+  // it's the same figure Uniwire uses to judge the invoice fully paid.
   const payload: any = {
     profile_id: process.env.UNIWIRE_PROFILE_ID,
-    currency: assetConfig.currency,
+    currency: isUsdAmount ? "USD" : assetConfig.currency,
     kind: assetConfig.kind,
     passthrough,
   };
@@ -110,6 +96,17 @@ export default defineEventHandler(async (event) => {
   const address = String(inv.address);
   const status = String(inv.status ?? "new");
 
+  // Uniwire always echoes back both figures regardless of which currency the
+  // request used - `invoiced` is the actual crypto amount the address expects
+  // on-chain; `requested` mirrors whatever currency/amount we sent.
+  const invoicedAmount =
+    inv.amount?.invoiced?.amount != null
+      ? String(inv.amount.invoiced.amount)
+      : amount;
+  const requestedFiatAmount = isUsdAmount
+    ? String(inv.amount?.requested?.amount ?? amount)
+    : null;
+
   // Save reusable address for this user+assetKey - fixed-amount invoices skip
   // this entirely, since they're one-off and never looked up again.
   if (!amount) {
@@ -135,7 +132,8 @@ export default defineEventHandler(async (event) => {
           userId: user.id,
           asset: assetConfig.currency,
           network: assetConfig.kind,
-          requestedAmount: amount,
+          requestedAmount: invoicedAmount,
+          requestedFiatAmount,
           uniwireInvoiceId: invoiceId,
           address,
           status,

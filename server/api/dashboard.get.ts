@@ -140,6 +140,7 @@ export default defineEventHandler(async (event) => {
       asset: d.asset,
       amount: d.amount?.toString() ?? null,
       requestedAmount: d.requestedAmount?.toString() ?? null,
+      requestedFiatAmount: d.requestedFiatAmount?.toString() ?? null,
       usdValue:
         d.fiatAmount !== null && d.fiatAmount !== undefined
           ? Number(d.fiatAmount)

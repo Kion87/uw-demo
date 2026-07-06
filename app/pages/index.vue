@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { formatUsd, formatCrypto, formatDepositProgress } from "~/shared/format";
+import {
+  formatUsd,
+  formatCrypto,
+  formatDepositProgress,
+  estimateRequestedFiatPaid,
+} from "~/shared/format";
 
 const displayMode = useDisplayMode();
 
@@ -83,6 +88,19 @@ function activityAmountSign(type?: string | null) {
 
 function activityAmountText(row: any) {
   if (row?.requestedAmount !== null && row?.requestedAmount !== undefined) {
+    if (displayMode.value === "usd" && row.requestedFiatAmount != null) {
+      const paidUsd = estimateRequestedFiatPaid(
+        row.amount,
+        row.requestedAmount,
+        row.requestedFiatAmount,
+      );
+      return formatDepositProgress(
+        paidUsd,
+        Number(row.requestedFiatAmount),
+        formatUsd,
+      );
+    }
+
     return formatDepositProgress(row.amount, row.requestedAmount);
   }
 

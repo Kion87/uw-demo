@@ -4,7 +4,12 @@ import {
   DEPOSIT_ASSETS,
   type DepositAssetKey,
 } from "~/shared/deposits";
-import { formatCrypto, formatDepositProgress, formatUsd } from "~/shared/format";
+import {
+  estimateRequestedFiatPaid,
+  formatCrypto,
+  formatDepositProgress,
+  formatUsd,
+} from "~/shared/format";
 
 const displayMode = useDisplayMode();
 
@@ -17,6 +22,7 @@ type DepositHistoryItem = {
   network: string;
   amount: string | null;
   requestedAmount: string | null;
+  requestedFiatAmount: string | null;
   fiatAmount: string | null;
   uniwireInvoiceId: string;
   address: string;
@@ -34,7 +40,6 @@ type DepositHistoryItem = {
 const me = ref<any>(null);
 const user = useState<any | null>("user");
 const depositAmount = ref("");
-const lastRequestedUsd = ref<string | null>(null);
 
 const base = ref<BaseAsset>("BTC");
 const selected = ref<DepositAssetKey>("BTC");
@@ -137,6 +142,15 @@ function amountCellText(d: DepositHistoryItem) {
       : (d.amount ?? "—");
   }
 
+  if (displayMode.value === "usd" && d.requestedFiatAmount !== null) {
+    const paidUsd = estimateRequestedFiatPaid(
+      d.amount,
+      d.requestedAmount,
+      d.requestedFiatAmount,
+    );
+    return formatDepositProgress(paidUsd, Number(d.requestedFiatAmount), formatUsd);
+  }
+
   return formatDepositProgress(d.amount, d.requestedAmount);
 }
 
@@ -232,10 +246,6 @@ async function createDeposit() {
       },
     });
 
-    lastRequestedUsd.value =
-      depositAmount.value && displayMode.value === "usd"
-        ? depositAmount.value
-        : null;
     depositAmount.value = "";
     await loadDeposits();
   } catch (e: any) {
@@ -397,8 +407,8 @@ onMounted(async () => {
                 <div v-if="result?.deposit?.requestedAmount" class="mt-2 text-xs text-nuxt-muted">
                   Requesting {{ formatCrypto(result.deposit.requestedAmount) }}
                   {{ result.deposit.asset }}
-                  <span v-if="lastRequestedUsd">
-                    (≈ {{ formatUsd(Number(lastRequestedUsd)) }} at creation)
+                  <span v-if="result?.deposit?.requestedFiatAmount">
+                    (≈ {{ formatUsd(Number(result.deposit.requestedFiatAmount)) }} at creation)
                   </span>
                 </div>
 
@@ -654,9 +664,10 @@ onMounted(async () => {
           <template v-if="user?.fixedAmountInvoices">
             <li>
               The amount field follows your USD/crypto display setting — in
-              USD mode, what you type is converted to crypto at the current
-              rate before the invoice is created, since Uniwire invoices are
-              always crypto-denominated.
+              USD mode, we ask Uniwire for a USD-denominated invoice directly;
+              Uniwire computes and returns the crypto amount actually invoiced
+              on-chain, so the figure matches what Uniwire itself uses to
+              judge the invoice fully paid.
             </li>
             <li>
               Each invoice callback carries the amount actually paid so far,

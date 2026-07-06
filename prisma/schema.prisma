@@ -69,6 +69,12 @@ model Deposit {
   // deposits (which have no "requested" concept).
   requestedAmount      Decimal?  @db.Decimal(36, 18)
 
+  // USD ask when the invoice was requested in USD (Uniwire's own
+  // amount.requested.amount) - null when requested directly in crypto.
+  // requestedAmount above is always Uniwire's computed crypto equivalent
+  // (amount.invoiced.amount) either way.
+  requestedFiatAmount  Decimal?  @db.Decimal(20, 6)
+
   // Fiat-equivalent value at time of deposit (from Uniwire's amount.paid.quotes.USD)
   fiatAmount           Decimal?  @db.Decimal(20, 6)
   fiatCurrency         String?
