@@ -5,6 +5,7 @@ export const COMPLETED_STATUSES = [
   "transaction_complete",
   "confirmed",
   "complete",
+  "invoice_complete",
 ];
 
 export function isCompletedStatus(status?: string | null) {

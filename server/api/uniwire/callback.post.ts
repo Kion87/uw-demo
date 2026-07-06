@@ -115,12 +115,13 @@ export default defineEventHandler(async (h3event) => {
   const callbackStatus = String(payload?.callback_status ?? "");
   const isTransactionCallback = callbackStatus.startsWith("transaction_");
   const isPayoutCallback = callbackStatus.startsWith("payout_");
+  const isInvoiceCallback = callbackStatus.startsWith("invoice_");
 
-  // Ignore invoice callbacks (return 200 so Uniwire won't retry)
-  if (!isTransactionCallback && !isPayoutCallback) {
+  // Ignore anything else (return 200 so Uniwire won't retry)
+  if (!isTransactionCallback && !isPayoutCallback && !isInvoiceCallback) {
     return {
       ok: true,
-      ignored: "invoice_callback",
+      ignored: "unknown_callback_type",
       version: VERSION,
       duplicateCallback: isDuplicateCallback,
     };
@@ -202,6 +203,70 @@ export default defineEventHandler(async (h3event) => {
     };
   }
 
+  // --- D2) Invoice callback processing (fixed-amount invoices only) ---
+  if (isInvoiceCallback) {
+    const invoice = resultObj;
+    const invoiceId = invoice?.id ? String(invoice.id) : null;
+
+    if (!invoiceId) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "Missing invoice id",
+      });
+    }
+
+    const INVOICE_STATUS_MAP: Record<string, string> = {
+      invoice_pending: "invoice_pending",
+      invoice_confirmed: "invoice_confirmed",
+      invoice_complete: "invoice_complete",
+      // "incomplete" contains "complete" as a substring, and
+      // depositActivityStatus()/displayStatus() classify by substring match -
+      // storing the raw Uniwire string here would make an underpaid invoice
+      // look done. Store a word that doesn't collide instead.
+      invoice_incomplete: "underpaid",
+    };
+
+    const invoiceStatus = INVOICE_STATUS_MAP[callbackStatus];
+
+    if (!invoiceStatus) {
+      return {
+        ok: true,
+        ignored: "unknown_invoice_status",
+        version: VERSION,
+        duplicateCallback: isDuplicateCallback,
+      };
+    }
+
+    const paidAmount = invoice?.amount?.paid?.amount;
+    const paidAmountStr =
+      paidAmount === null || paidAmount === undefined
+        ? undefined
+        : String(paidAmount);
+
+    console.log("INVOICE CALLBACK", {
+      invoiceId,
+      callback_status: callbackStatus,
+      mapped_status: invoiceStatus,
+      requested: invoice?.amount?.requested,
+      paid: invoice?.amount?.paid,
+      duplicateCallback: isDuplicateCallback,
+    });
+
+    await prisma.deposit.updateMany({
+      where: { uniwireInvoiceId: invoiceId },
+      data: {
+        status: invoiceStatus,
+        amount: paidAmountStr,
+      },
+    });
+
+    return {
+      ok: true,
+      version: VERSION,
+      duplicateCallback: isDuplicateCallback,
+    };
+  }
+
   // --- E) Transaction callback processing ---
   const tx = resultObj;
 
@@ -250,6 +315,29 @@ export default defineEventHandler(async (h3event) => {
   });
 
   if (!userAddress) {
+    // Fixed-amount invoices never get a DepositAddress row (see
+    // deposit.post.ts), but Uniwire still sends transaction_* callbacks for
+    // their on-chain activity. invoice_* callbacks are the sole source of
+    // truth for those rows, so acknowledge and ignore rather than reject.
+    const fixedAmountDeposit = await prisma.deposit.findFirst({
+      where: {
+        userId: user.id,
+        OR: [
+          ...(invoiceId ? [{ uniwireInvoiceId: invoiceId }] : []),
+          { address: String(receivingAddress) },
+        ],
+      },
+    });
+
+    if (fixedAmountDeposit) {
+      return {
+        ok: true,
+        ignored: "fixed_amount_invoice_transaction",
+        version: VERSION,
+        duplicateCallback: isDuplicateCallback,
+      };
+    }
+
     throw createError({
       statusCode: 403,
       statusMessage: "Receiving address not owned by user",
