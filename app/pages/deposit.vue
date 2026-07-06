@@ -617,7 +617,7 @@ onUnmounted(() => {
                           <button
                             v-if="d.txid"
                             type="button"
-                            class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-text hover:opacity-90"
+                            class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-text hover:opacity-90"
                             :title="`Copy ${d.txid}`"
                             @click="copyText(d.txid)"
                           >
@@ -629,7 +629,7 @@ onUnmounted(() => {
                               stroke-width="2"
                               stroke-linecap="round"
                               stroke-linejoin="round"
-                              class="h-4 w-4"
+                              class="h-3.5 w-3.5"
                             >
                               <rect
                                 x="9"
@@ -650,7 +650,7 @@ onUnmounted(() => {
                             :href="explorerUrl(d.network, d.txid) || undefined"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-green hover:opacity-90"
+                            class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-green hover:opacity-90"
                             :title="`Open transaction in explorer`"
                           >
                             <svg
@@ -661,7 +661,7 @@ onUnmounted(() => {
                               stroke-width="2"
                               stroke-linecap="round"
                               stroke-linejoin="round"
-                              class="h-4 w-4"
+                              class="h-3.5 w-3.5"
                             >
                               <path d="M14 3h7v7" />
                               <path d="M10 14L21 3" />
