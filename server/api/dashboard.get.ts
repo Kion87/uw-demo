@@ -77,8 +77,13 @@ export default defineEventHandler(async (event) => {
       orderBy: { createdAt: "desc" },
       take: 6,
     }),
+    // Excludes rows still sitting at "new" - an untouched invoice with no
+    // transaction activity yet isn't a deposit, just an invoice waiting to be
+    // paid (see depositActivityStatus above). Otherwise "Pending deposits"
+    // (totalDeposits - completedDeposits) would count those as pending,
+    // implying money is already in motion when nothing has happened at all.
     prisma.deposit.count({
-      where: { userId: user.id },
+      where: { userId: user.id, status: { not: "new" } },
     }),
     prisma.deposit.count({
       where: {
