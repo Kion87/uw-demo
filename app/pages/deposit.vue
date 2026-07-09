@@ -6,9 +6,11 @@ import {
 } from "~/shared/deposits";
 import {
   estimateRequestedFiatPaid,
+  explorerUrl,
   formatCrypto,
   formatDepositProgress,
   formatUsd,
+  shortHash,
 } from "~/shared/format";
 
 const displayMode = useDisplayMode();
@@ -123,12 +125,6 @@ function formatDate(value: string | null) {
   return new Date(value).toLocaleString();
 }
 
-function shortHash(value: string | null, start = 10, end = 8) {
-  if (!value) return "—";
-  if (value.length <= start + end + 3) return value;
-  return `${value.slice(0, start)}...${value.slice(-end)}`;
-}
-
 function displayStatus(status: string | null) {
   // Untouched since creation - no invoice_* callback has fired yet, so no
   // transaction activity exists at all. Distinct from a real in-flight
@@ -184,30 +180,6 @@ function amountCellText(d: DepositHistoryItem) {
   }
 
   return formatDepositProgress(d.amount, d.requestedAmount);
-}
-
-function explorerUrl(network: string, txid: string | null) {
-  if (!txid) return null;
-
-  const n = String(network || "").toUpperCase();
-
-  if (n.includes("BTC")) {
-    return `https://mempool.space/testnet/tx/${txid}`;
-  }
-
-  if (n.includes("ETH")) {
-    return `https://sepolia.etherscan.io/tx/${txid}`;
-  }
-
-  if (n.includes("TRX") || n.includes("TRON")) {
-    return `https://nile.tronscan.org/#/transaction/${txid}`;
-  }
-
-  if (n.includes("SOL")) {
-    return `https://solscan.io/tx/${txid}`;
-  }
-
-  return null;
 }
 
 async function copyText(value: string | null) {

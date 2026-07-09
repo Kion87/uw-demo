@@ -4,6 +4,8 @@ import {
   formatCrypto,
   formatDepositProgress,
   estimateRequestedFiatPaid,
+  shortHash,
+  explorerUrl,
 } from "~/shared/format";
 
 const displayMode = useDisplayMode();
@@ -252,19 +254,20 @@ onMounted(loadDashboard);
           <!-- Table (sm and up) -->
           <div class="hidden sm:block">
             <div
-              class="grid grid-cols-[1.2fr_1fr_1fr_1fr_100px] border-t border-white/[0.06] px-6 py-2.5 text-[11.5px] font-bold uppercase tracking-[0.05em] text-nuxt-muted2"
+              class="grid grid-cols-[1.1fr_1fr_0.8fr_1fr_1.3fr_100px] border-t border-white/[0.06] px-6 py-2.5 text-[11.5px] font-bold uppercase tracking-[0.05em] text-nuxt-muted2"
             >
               <span>Type</span>
               <span>Amount</span>
               <span>Asset</span>
               <span>Date</span>
+              <span>TxID</span>
               <span class="justify-self-end">Status</span>
             </div>
 
             <div
               v-for="row in dashboard.recentActivity"
               :key="row.id"
-              class="grid grid-cols-[1.2fr_1fr_1fr_1fr_100px] items-center border-t border-white/[0.06] px-6 py-3.5"
+              class="grid grid-cols-[1.1fr_1fr_0.8fr_1fr_1.3fr_100px] items-center border-t border-white/[0.06] px-6 py-3.5"
             >
               <span class="text-[13.5px] font-semibold capitalize text-nuxt-text">
                 {{ row.type }}
@@ -275,6 +278,66 @@ onMounted(loadDashboard);
               <span class="text-[13.5px] text-nuxt-muted2">{{ row.asset }}</span>
               <span class="text-[12.5px] text-nuxt-muted2">
                 {{ formatShortDate(row.createdAt) }}
+              </span>
+              <span class="flex min-w-0 items-center gap-2 pr-2">
+                <span
+                  class="truncate text-[12.5px] text-nuxt-muted2"
+                  :title="row.txid || ''"
+                >
+                  {{ shortHash(row.txid, 4, 4) }}
+                </span>
+
+                <div class="flex shrink-0 items-center gap-1.5">
+                  <button
+                    v-if="row.txid"
+                    type="button"
+                    class="inline-flex h-5 w-5 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-text hover:opacity-90"
+                    :title="`Copy ${row.txid}`"
+                    @click="copyText(row.txid)"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="h-3 w-3"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path
+                        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                      />
+                    </svg>
+                  </button>
+
+                  <a
+                    v-if="explorerUrl(row.network, row.txid)"
+                    :href="explorerUrl(row.network, row.txid) || undefined"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex h-5 w-5 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-green hover:opacity-90"
+                    title="Open transaction in explorer"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="h-3 w-3"
+                    >
+                      <path d="M14 3h7v7" />
+                      <path d="M10 14L21 3" />
+                      <path
+                        d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"
+                      />
+                    </svg>
+                  </a>
+                </div>
               </span>
               <span
                 class="justify-self-end rounded-full px-2.5 py-1 text-[11px] font-bold capitalize"
@@ -310,6 +373,63 @@ onMounted(loadDashboard);
                 <span class="text-[12.5px] text-nuxt-muted2">
                   {{ formatShortDate(row.createdAt) }}
                 </span>
+              </div>
+              <div class="mt-2 flex items-center justify-between gap-3 text-[12.5px] text-nuxt-muted2">
+                <span class="truncate" :title="row.txid || ''">
+                  {{ shortHash(row.txid, 4, 4) }}
+                </span>
+
+                <div class="flex shrink-0 items-center gap-1.5">
+                  <button
+                    v-if="row.txid"
+                    type="button"
+                    class="inline-flex h-5 w-5 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-text hover:opacity-90"
+                    :title="`Copy ${row.txid}`"
+                    @click="copyText(row.txid)"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="h-3 w-3"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path
+                        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                      />
+                    </svg>
+                  </button>
+
+                  <a
+                    v-if="explorerUrl(row.network, row.txid)"
+                    :href="explorerUrl(row.network, row.txid) || undefined"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex h-5 w-5 items-center justify-center rounded-md border border-nuxt-border bg-nuxt-bg text-nuxt-muted transition hover:text-nuxt-green hover:opacity-90"
+                    title="Open transaction in explorer"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="h-3 w-3"
+                    >
+                      <path d="M14 3h7v7" />
+                      <path d="M10 14L21 3" />
+                      <path
+                        d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"
+                      />
+                    </svg>
+                  </a>
+                </div>
               </div>
             </div>
           </div>

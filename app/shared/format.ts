@@ -44,3 +44,33 @@ export function estimateRequestedFiatPaid(
   if (!requestedCryptoNum) return 0;
   return (Number(paid ?? 0) / requestedCryptoNum) * Number(requestedFiat);
 }
+
+export function shortHash(value: string | null, start = 10, end = 8): string {
+  if (!value) return "—";
+  if (value.length <= start + end + 3) return value;
+  return `${value.slice(0, start)}...${value.slice(-end)}`;
+}
+
+export function explorerUrl(network: string, txid: string | null): string | null {
+  if (!txid) return null;
+
+  const n = String(network || "").toUpperCase();
+
+  if (n.includes("BTC")) {
+    return `https://mempool.space/testnet/tx/${txid}`;
+  }
+
+  if (n.includes("ETH")) {
+    return `https://sepolia.etherscan.io/tx/${txid}`;
+  }
+
+  if (n.includes("TRX") || n.includes("TRON")) {
+    return `https://nile.tronscan.org/#/transaction/${txid}`;
+  }
+
+  if (n.includes("SOL")) {
+    return `https://solscan.io/tx/${txid}`;
+  }
+
+  return null;
+}
