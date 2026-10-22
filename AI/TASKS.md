@@ -4,6 +4,12 @@
 
 Ideas dropped here for planning/execution in a later session. No structure required — just add a line.
 
+- "Test scenarios" page inside the app, to walk through during client demos like a script. Each scenario: what to do, what should happen, where to see it. Mark the ones that need the Uniwire back office (e.g. retrying a callback) as "done by the presenter". Start simple (static list); later maybe checkboxes or auto-detecting a scenario from the data. Scenarios so far:
+  - Deposits: several tokens to one address (ETH + USDT ERC-20 + USDC ERC-20 to the same ETH address; TRX + USDT TRC-20 to the same Tron address) each credited separately — already seen working with ETH sent to an invoice address; pending → confirmed (balance only moves on confirmation); several deposits to the same address (one row each); fixed-amount invoice paid exactly; underpaid invoice ("Underpaid", not credited); overpaid invoice (code credits the actual paid amount — untested); unsupported token sent to a deposit address (should credit nothing, break nothing); same callback resent (no double credit, fingerprint says `same_content`).
+  - Withdrawals: wrong-format address (rejected, balance back immediately); more than available balance (blocked before Uniwire is contacted); normal withdrawal (reserved → pending → confirmed → complete, balance drops at the start).
+  - Display: USD/crypto toggle changes every figure on every page.
+  - Before demoing, decide how to present this: balances are pooled per token, not per token+network, so USDT deposited on Tron can be withdrawn as USDT on Ethereum.
+
 ## Completed tasks
 
 1. Check the withdrawal status, on Dashboard and Withdraw page. I think I noticed the payout was completed after only tx_confirmed callback. — `payout_confirmed`/`payout_complete` were both collapsed into the same `"confirmed"` withdrawal status, causing inconsistent labels between Dashboard and Withdraw page. Fixed to keep them distinct (`confirmed` vs `complete`) and shown consistently in both places (commit `5f95c6a`).
