@@ -80,6 +80,7 @@ Two-layer approach:
 
 - insert callback_id into `UniwireCallback` (unique)
 - if duplicate callback_id: do not fail; continue
+- every delivery is fingerprinted (SHA-256 of key-sorted JSON body, stored with the full body in `UniwireCallback.payload`/`bodyHash`); a duplicate `callback_id` with different content is recorded in `lastMismatchPayload` and rejected with 409 only when `CALLBACK_FINGERPRINT_ENFORCE=true` (report-only otherwise). The webhook response includes `fingerprint`: `new` / `same_content` / `content_changed` / `recorded_first_time` (first delivery of a callback stored before fingerprints existed)
 
 2. Deposit rows:
 

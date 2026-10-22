@@ -14,6 +14,29 @@ function safeEqualHex(a: string, b: string) {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
+// JSON.stringify with object keys sorted at every level, so the fingerprint
+// only changes when the actual content changes, not if key order differs.
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const keys = Object.keys(value as Record<string, unknown>).sort();
+    return `{${keys
+      .map(
+        (k) =>
+          `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`,
+      )
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+// Set CALLBACK_FINGERPRINT_ENFORCE=true in Netlify to reject (409) a
+// callback whose id we've seen before but whose content has changed.
+// Until then mismatches are only logged and reported in the response.
+const ENFORCE_FINGERPRINT = process.env.CALLBACK_FINGERPRINT_ENFORCE === "true";
+
 function parsePassthroughToPublicId(passthroughRaw: unknown): string | null {
   if (typeof passthroughRaw !== "string") return null;
   const trimmed = passthroughRaw.trim();
@@ -44,7 +67,7 @@ function parsePassthroughToPublicId(passthroughRaw: unknown): string | null {
 
 export default defineEventHandler(async (h3event) => {
   const payload = await readBody<any>(h3event);
-  const VERSION = "cb-v7-2026-03-05-2329";
+  const VERSION = "cb-v8-2026-10-23-fingerprint";
 
   console.log("WEBHOOK VERSION", VERSION);
   console.log("UNIWIRE CALLBACK HIT", {
@@ -80,23 +103,77 @@ export default defineEventHandler(async (h3event) => {
 
   console.log("SIGNATURE OK", VERSION);
 
-  // --- B) Callback idempotency (DO NOT return early on duplicates) ---
+  // --- B) Callback idempotency + content fingerprint ---
+  // Duplicates are NOT returned early: Uniwire resends callbacks, and the
+  // deposit upsert keeps reprocessing idempotent. But since the signature only
+  // covers callback_id, we compare the content of a resend against what we
+  // stored the first time, so a replayed id with altered content is caught.
   let isDuplicateCallback = false;
+  let fingerprint:
+    | "new"
+    | "same_content"
+    | "content_changed"
+    | "recorded_first_time" = "new";
+
+  const bodyHash = crypto
+    .createHash("sha256")
+    .update(stableStringify(payload))
+    .digest("hex");
 
   try {
     await prisma.uniwireCallback.create({
-      data: { callbackId: String(callbackId) },
+      data: { callbackId: String(callbackId), payload, bodyHash },
     });
     console.log("UNIWIRE CALLBACK SAVED", String(callbackId));
   } catch (e: any) {
-    if (e?.code === "P2002") {
-      isDuplicateCallback = true;
-      console.log("UNIWIRE CALLBACK DUPLICATE", String(callbackId));
-      // ✅ Continue processing. Deposit upsert will keep it idempotent.
-    } else {
+    if (e?.code !== "P2002") {
       console.error("UNIWIRE CALLBACK INSERT FAILED", e);
       throw e;
     }
+
+    isDuplicateCallback = true;
+    const existing = await prisma.uniwireCallback.findUnique({
+      where: { callbackId: String(callbackId) },
+      select: { bodyHash: true },
+    });
+
+    if (!existing?.bodyHash) {
+      // Received before fingerprints existed - record this delivery as the
+      // reference content for future comparisons.
+      fingerprint = "recorded_first_time";
+      await prisma.uniwireCallback.update({
+        where: { callbackId: String(callbackId) },
+        data: { payload, bodyHash, deliveryCount: { increment: 1 } },
+      });
+    } else if (existing.bodyHash === bodyHash) {
+      fingerprint = "same_content";
+      await prisma.uniwireCallback.update({
+        where: { callbackId: String(callbackId) },
+        data: { deliveryCount: { increment: 1 } },
+      });
+    } else {
+      fingerprint = "content_changed";
+      await prisma.uniwireCallback.update({
+        where: { callbackId: String(callbackId) },
+        data: {
+          deliveryCount: { increment: 1 },
+          lastMismatchPayload: payload,
+        },
+      });
+      console.warn("UNIWIRE CALLBACK CONTENT CHANGED", {
+        callback_id: String(callbackId),
+        enforce: ENFORCE_FINGERPRINT,
+      });
+
+      if (ENFORCE_FINGERPRINT) {
+        throw createError({
+          statusCode: 409,
+          statusMessage: "Callback content does not match earlier delivery",
+        });
+      }
+    }
+
+    console.log("UNIWIRE CALLBACK DUPLICATE", String(callbackId), fingerprint);
   }
 
   // --- C) Extract result + detect callback type ---
@@ -124,6 +201,7 @@ export default defineEventHandler(async (h3event) => {
       ignored: "unknown_callback_type",
       version: VERSION,
       duplicateCallback: isDuplicateCallback,
+      fingerprint,
     };
   }
 
@@ -163,6 +241,7 @@ export default defineEventHandler(async (h3event) => {
       confirmations: payout?.confirmations,
       error: payout?.error,
       duplicateCallback: isDuplicateCallback,
+      fingerprint,
     });
 
     if (!status) {
@@ -171,6 +250,7 @@ export default defineEventHandler(async (h3event) => {
         ignored: "unknown_payout_status",
         version: VERSION,
         duplicateCallback: isDuplicateCallback,
+        fingerprint,
       };
     }
 
@@ -200,6 +280,7 @@ export default defineEventHandler(async (h3event) => {
       ok: true,
       version: VERSION,
       duplicateCallback: isDuplicateCallback,
+      fingerprint,
     };
   }
 
@@ -234,6 +315,7 @@ export default defineEventHandler(async (h3event) => {
         ignored: "unknown_invoice_status",
         version: VERSION,
         duplicateCallback: isDuplicateCallback,
+        fingerprint,
       };
     }
 
@@ -255,6 +337,7 @@ export default defineEventHandler(async (h3event) => {
       ok: true,
       version: VERSION,
       duplicateCallback: isDuplicateCallback,
+      fingerprint,
     };
   }
 
@@ -326,6 +409,7 @@ export default defineEventHandler(async (h3event) => {
         ignored: "fixed_amount_invoice_transaction",
         version: VERSION,
         duplicateCallback: isDuplicateCallback,
+        fingerprint,
       };
     }
 
@@ -427,6 +511,7 @@ export default defineEventHandler(async (h3event) => {
     confirmedAt,
     confirmations,
     duplicateCallback: isDuplicateCallback,
+    fingerprint,
   });
 
   try {
@@ -467,4 +552,11 @@ export default defineEventHandler(async (h3event) => {
     console.error("DEPOSIT UPSERT FAILED", e);
     throw e;
   }
+
+  return {
+    ok: true,
+    version: VERSION,
+    duplicateCallback: isDuplicateCallback,
+    fingerprint,
+  };
 });

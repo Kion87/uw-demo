@@ -65,6 +65,7 @@ Same scheme for both transaction and payout callbacks.
 
 - Store `callback_id` into `UniwireCallback.callbackId` (unique)
 - If duplicate callback_id occurs, do not fail; continue processing (resends happen)
+- Content fingerprint: the full body is stored in `UniwireCallback.payload` with a SHA-256 of its key-sorted JSON in `bodyHash`. Because the signature only covers `callback_id`, a resend is compared against the stored hash: same content → normal resend; different content → logged (`lastMismatchPayload`) and, when `CALLBACK_FINGERPRINT_ENFORCE=true`, rejected with 409. Do not remove this check or narrow the hash to only some fields.
 
 2. Deposit idempotency:
 
