@@ -75,6 +75,7 @@ Same scheme for both transaction and payout callbacks.
 ### Credit Rules
 
 - Only credit on `transaction_confirmed` / `transaction_complete`
+- Statuses only move forward: `server/utils/statusOrder.ts` ranks deposit (new → pending → underpaid → confirmed → complete) and withdrawal (reserved → pending/initialized → confirmed → complete; rejected/failed final) statuses, and the webhook ignores (`ignored: "stale_status"`, 2xx) any transaction/invoice/payout callback that would move a row to an earlier stage. Unknown statuses are never blocked. Keep new status values added to these rank tables.
 - Must never credit twice (even with resends) — implemented by recomputing available balance live from status-filtered aggregates (`getAvailableBalances()` in `server/utils/balances.ts`) rather than incrementing a stored counter. Do not reintroduce a stored/incrementable balance field without preserving this "never double-apply" property.
 
 ## 4) Withdrawals (Do Not Break)

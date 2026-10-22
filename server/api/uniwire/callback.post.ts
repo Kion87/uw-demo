@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
+import { isDepositDowngrade, isWithdrawalDowngrade } from "../../utils/statusOrder";
 
 const prisma = new PrismaClient();
 
@@ -67,7 +68,7 @@ function parsePassthroughToPublicId(passthroughRaw: unknown): string | null {
 
 export default defineEventHandler(async (h3event) => {
   const payload = await readBody<any>(h3event);
-  const VERSION = "cb-v8-2026-10-23-fingerprint";
+  const VERSION = "cb-v9-2026-10-23-status-guard";
 
   console.log("WEBHOOK VERSION", VERSION);
   console.log("UNIWIRE CALLBACK HIT", {
@@ -261,8 +262,36 @@ export default defineEventHandler(async (h3event) => {
           ? Number(payout.confirmations)
           : undefined;
 
+    const payoutWhere = referenceId
+      ? { referenceId }
+      : { uniwirePayoutId: uniwirePayoutId! };
+
+    // Ignore a late/out-of-order callback that would move the withdrawal
+    // back to an earlier stage (or out of a final rejected/failed state).
+    const currentWithdrawal = await prisma.withdrawal.findFirst({
+      where: payoutWhere,
+      select: { status: true },
+    });
+    if (
+      currentWithdrawal &&
+      isWithdrawalDowngrade(currentWithdrawal.status, status)
+    ) {
+      console.log("PAYOUT CALLBACK STALE - ignored", {
+        referenceId,
+        current: currentWithdrawal.status,
+        incoming: status,
+      });
+      return {
+        ok: true,
+        ignored: "stale_status",
+        version: VERSION,
+        duplicateCallback: isDuplicateCallback,
+        fingerprint,
+      };
+    }
+
     await prisma.withdrawal.updateMany({
-      where: referenceId ? { referenceId } : { uniwirePayoutId: uniwirePayoutId! },
+      where: payoutWhere,
       data: {
         status,
         // backfill uniwirePayoutId in case our own request was ambiguous
@@ -325,8 +354,37 @@ export default defineEventHandler(async (h3event) => {
         ? undefined
         : String(paidAmount);
 
+    const invoiceWhere = {
+      uniwireInvoiceId: invoiceId,
+      requestedAmount: { not: null },
+    };
+
+    // Ignore a late/out-of-order callback that would move the invoice back
+    // (e.g. invoice_pending arriving after invoice_complete would un-credit it).
+    const currentInvoiceDeposit = await prisma.deposit.findFirst({
+      where: invoiceWhere,
+      select: { status: true },
+    });
+    if (
+      currentInvoiceDeposit &&
+      isDepositDowngrade(currentInvoiceDeposit.status, invoiceStatus)
+    ) {
+      console.log("INVOICE CALLBACK STALE - ignored", {
+        invoiceId,
+        current: currentInvoiceDeposit.status,
+        incoming: invoiceStatus,
+      });
+      return {
+        ok: true,
+        ignored: "stale_status",
+        version: VERSION,
+        duplicateCallback: isDuplicateCallback,
+        fingerprint,
+      };
+    }
+
     await prisma.deposit.updateMany({
-      where: { uniwireInvoiceId: invoiceId, requestedAmount: { not: null } },
+      where: invoiceWhere,
       data: {
         status: invoiceStatus,
         amount: paidAmountStr,
@@ -513,6 +571,28 @@ export default defineEventHandler(async (h3event) => {
     duplicateCallback: isDuplicateCallback,
     fingerprint,
   });
+
+  // Ignore a late/out-of-order callback that would move this deposit back
+  // (e.g. transaction_pending arriving after transaction_confirmed would take
+  // already-credited money out of the balance).
+  const currentDeposit = await prisma.deposit.findUnique({
+    where: { uniwireTransactionId },
+    select: { status: true },
+  });
+  if (currentDeposit && isDepositDowngrade(currentDeposit.status, status)) {
+    console.log("TRANSACTION CALLBACK STALE - ignored", {
+      uniwireTransactionId,
+      current: currentDeposit.status,
+      incoming: status,
+    });
+    return {
+      ok: true,
+      ignored: "stale_status",
+      version: VERSION,
+      duplicateCallback: isDuplicateCallback,
+      fingerprint,
+    };
+  }
 
   try {
     await prisma.deposit.upsert({
