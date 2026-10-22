@@ -116,6 +116,7 @@ Response handling:
 - extract `id` (Uniwire's payout id) from `res.result ?? res.content.result`
 - a network/timeout error or a response with no `id` is treated as **ambiguous** — the payout might have gone through, so the reservation is never released speculatively; one retry is attempted (same `reference_id`), and if still ambiguous the withdrawal stays in `reserved` status until a payout callback resolves it
 - a structured error response with a `reason` field (e.g. `InvalidAddress`, `InsufficientFunds`) is a clear rejection — the reservation is released (`status: "rejected"`) immediately, no retry
+- exception: a structured error on the **retry** (i.e. after an ambiguous first attempt) does **not** release the reservation — the first attempt may already have created the payout, and Uniwire may be refusing the retry only because it has seen that `reference_id` before. The withdrawal stays `reserved` (error noted in `errorMessage`) until a payout callback resolves it
 
 ### Payout Callback
 

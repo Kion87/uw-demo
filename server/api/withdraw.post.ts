@@ -128,7 +128,13 @@ export default defineEventHandler(async (event) => {
     );
   }
 
-  async function handleAttempt(): Promise<"success" | "rejected" | "ambiguous"> {
+  // isRetry: true when the previous attempt was ambiguous (timeout/network
+  // error/no id). In that case the first request may already have created the
+  // payout on Uniwire's side, so an error on the retry (e.g. Uniwire refusing
+  // a reference_id it has already seen) must NOT be read as "nothing was paid".
+  async function handleAttempt(
+    isRetry: boolean,
+  ): Promise<"success" | "rejected" | "ambiguous"> {
     try {
       const res = await attemptPayout();
       const payout = res?.result ?? res?.content?.result;
@@ -157,6 +163,21 @@ export default defineEventHandler(async (event) => {
       // ambiguous - the payout might have gone through, so we must not
       // release the funds; only a callback can resolve it from here.
       const reason = e?.data?.reason;
+
+      if (reason && isRetry) {
+        // Keep the reservation: the first (ambiguous) attempt may have gone
+        // through. Record the error for visibility; a payout_* callback
+        // (matched by referenceId) decides the final status.
+        console.error("Uniwire rejected payout retry, keeping reservation:", e.data);
+        await prisma.withdrawal.update({
+          where: { id: withdrawal.id },
+          data: {
+            errorMessage: `Retry rejected (${reason}: ${e.data.message ?? ""}) - awaiting callback`.trim(),
+          },
+        });
+        return "ambiguous";
+      }
+
       if (reason) {
         await prisma.withdrawal.update({
           where: { id: withdrawal.id },
@@ -173,11 +194,11 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const outcome = await handleAttempt();
+  const outcome = await handleAttempt(false);
 
   if (outcome === "ambiguous") {
     await sleep(500);
-    await handleAttempt();
+    await handleAttempt(true);
     // If still ambiguous, the withdrawal stays "reserved" - a later
     // payout_* callback (matched by referenceId) resolves it.
   }
