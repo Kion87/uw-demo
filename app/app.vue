@@ -207,7 +207,7 @@ async function logout() {
     <div
       class="fixed bottom-3 left-3 z-50 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white shadow-lg"
     >
-      Build: callback fingerprint · 23 Oct
+      Build: status guard · 23 Oct
     </div>
 
     <!-- Auth modal -->
